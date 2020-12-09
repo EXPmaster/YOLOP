@@ -11,13 +11,10 @@ _C = CN()
 
 _C.OUTPUT_DIR = ''
 _C.LOG_DIR = ''
-_C.DATA_DIR = ''
 _C.GPUS = (0,)
 _C.WORKERS = 4
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = False
-_C.PIN_MEMORY = True
-_C.RANK = 0
 
 # Cudnn related params
 _C.CUDNN = CN()
@@ -26,23 +23,17 @@ _C.CUDNN.DETERMINISTIC = False
 _C.CUDNN.ENABLED = True
 
 # common params for NETWORK
-_C.MODEL = CN()
+_C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.INIT_WEIGHTS = True
 _C.MODEL.PRETRAINED = ''
 _C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
-_C.MODEL.HEATMAP_SIZE = [64, 64]  # width * height, ex: 24 * 32
-_C.MODEL.SIGMA = 2
-_C.MODEL.EXTRA = CN(new_allowed=True)
 
-_C.LOSS = CN()
-_C.LOSS.USE_OHKM = False
-_C.LOSS.TOPK = 8
-_C.LOSS.USE_TARGET_WEIGHT = True
+_C.LOSS = CN(new_allowed=True)
+_C.LOSS.LOSS_NAME = ''
 
 # DATASET related params
-_C.DATASET = CN()
+_C.DATASET = CN(new_allowed=True)
 _C.DATASET.ROOT = ''
 _C.DATASET.DATASET = ''
 _C.DATASET.TRAIN_SET = 'train'
@@ -57,7 +48,7 @@ _C.DATASET.ROT_FACTOR = 30
 _C.DATASET.COLOR_RGB = False
 
 # train
-_C.TRAIN = CN()
+_C.TRAIN = CN(new_allowed=True)
 
 _C.TRAIN.LR_FACTOR = 0.1
 _C.TRAIN.LR_STEP = [90, 110]
@@ -73,41 +64,14 @@ _C.TRAIN.GAMMA2 = 0.0
 _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
-_C.TRAIN.RESUME = False
-_C.TRAIN.CHECKPOINT = ''
 _C.TRAIN.VAL_FREQ = 10
-
 _C.TRAIN.BATCH_SIZE_PER_GPU = 32
 _C.TRAIN.SHUFFLE = True
 
 # testing
-_C.TEST = CN()
-
-# size of images for each device
+_C.TEST = CN(new_allowed=True)
 _C.TEST.BATCH_SIZE_PER_GPU = 32
-# Test Model Epoch
-_C.TEST.POST_PROCESS = False
-_C.TEST.BLUR_KERNEL = 11
-
-# nms
-_C.TEST.IMAGE_THRE = 0.1
-_C.TEST.NMS_THRE = 0.6
-_C.TEST.SOFT_NMS = False
-_C.TEST.OKS_THRE = 0.5
-_C.TEST.PCKH_THRE = 0.5
-_C.TEST.IN_VIS_THRE = 0.0
-_C.TEST.COCO_BBOX_FILE = ''
-_C.TEST.BBOX_THRE = 1.0
 _C.TEST.MODEL_FILE = ''
-
-# debug
-_C.DEBUG = CN()
-_C.DEBUG.DEBUG = False
-_C.DEBUG.SAVE_BATCH_IMAGES_GT = False
-_C.DEBUG.SAVE_BATCH_IMAGES_PRED = False
-_C.DEBUG.SAVE_HEATMAPS_GT = False
-_C.DEBUG.SAVE_HEATMAPS_PRED = False
-
 
 def update_config(cfg, args):
     cfg.defrost()
