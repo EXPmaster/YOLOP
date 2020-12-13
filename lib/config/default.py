@@ -28,6 +28,7 @@ _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
 _C.MODEL.PRETRAINED = ''
 _C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
+_C.MODEL.EXTRA = CN(new_allowed=True)
 
 _C.LOSS = CN(new_allowed=True)
 _C.LOSS.LOSS_NAME = ''
