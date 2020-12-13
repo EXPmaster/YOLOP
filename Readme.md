@@ -1,5 +1,5 @@
 ### 整体结构
-
+```
 ├─lib
 │  ├─config	# 不太用管，用于管理yaml文件
 │  ├─core	  # 包括inference 推理代码， function(train和validate函数)，evaluate代码和loss损失函数代码
@@ -8,8 +8,7 @@
 │  └─utils	# 各种乱七八糟的，其实也可以再新建文件夹
 ├─tools  存放train.py和test.py 
 └─visualization	plot.py用于读取结果的json文件，并绘制结果在图片上
-
-
+```
 
 ### 补充说明
 
