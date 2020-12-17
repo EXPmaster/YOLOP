@@ -99,4 +99,4 @@ def update_config(cfg, args):
             cfg.DATA_DIR, cfg.TEST.MODEL_FILE
         )
 
-    cfg.freeze()
+    # cfg.freeze()

@@ -81,7 +81,7 @@ class CSPDarknet(nn.Module):
         self.model, self.save = nn.Sequential(*(layers)), sorted(save)
         self.names = [str(i) for i in range(self.nc)]
 
-        #set stride、anchor for detector
+        # set stride、anchor for detector
         Detector = self.model[self.detector_index] #detector
         if isinstance(Detector, Detect):
             s = 128  # 2x min stride

@@ -8,6 +8,7 @@ import pprint
 
 import torch
 import torch.nn.parallel
+from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
@@ -55,6 +56,9 @@ def parse_args():
                         type=str,
                         default='')
 
+    parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
+    parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
+
     args = parser.parse_args()
 
     return args
@@ -65,6 +69,12 @@ def main():
     args = parse_args()
     update_config(cfg, args)
 
+    # Set DDP variables
+    world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
+    global_rank = int(os.environ['RANK']) if 'RANK' in os.environ else -1
+
+    rank = global_rank
+    # TODO: handle distributed training logger
     # set the logger, tb_log_dir means tensorboard logdir
     logger, final_output_dir, tb_log_dir = create_logger(
         cfg, args.cfg, 'train')
@@ -85,7 +95,22 @@ def main():
 
     # bulid up model
     model = get_net(cfg)
-    model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+    # DP mode
+    if rank == -1 and torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+
+    # DDP mode
+    if rank != -1:
+        model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
+
+    # device = select_device(opt.device, batch_size=opt.batch_size)
+    # if args.local_rank != -1:
+    #     assert torch.cuda.device_count() > opt.local_rank
+    #     torch.cuda.set_device(opt.local_rank)
+    #     device = torch.device('cuda', opt.local_rank)
+    #     dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
+    #     assert opt.batch_size % opt.world_size == 0, '--batch-size must be multiple of CUDA device count'
+    #     opt.batch_size = opt.total_batch_size // opt.world_size
 
     # Data loading
     normalize = transforms.Normalize(
@@ -151,12 +176,12 @@ def main():
     # training
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):
         # train for one epoch
-        train(cfg, train_loader, model, criterion, optimizer, epoch, writer_dict)
+        train(cfg, train_loader, model, criterion, optimizer, epoch, writer_dict, rank)
         
         lr_scheduler.step()
 
         # evaluate on validation set
-        if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch==cfg.TRAIN.END_EPOCH+1:
+        if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
             perf_indicator = validate(
                 cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict
