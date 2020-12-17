@@ -2,7 +2,7 @@ import time
 
 
 def train(config, train_loader, model, criterion, optimizer, epoch,
-          writer_dict):
+          writer_dict, rank=-1):
     """
     train for one epoch
 
