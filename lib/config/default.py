@@ -35,7 +35,9 @@ _C.LOSS.LOSS_NAME = ''
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
-_C.DATASET.ROOT = ''
+_C.DATASET.DATAROOT = ''
+_C.DATASET.LABELROOT = ''
+_C.DATASET.MASKROOT = ''
 _C.DATASET.DATASET = ''
 _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'valid'

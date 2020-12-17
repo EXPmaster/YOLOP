@@ -5,6 +5,7 @@ from __future__ import print_function
 import cv2
 import numpy as np
 import torch
+import os
 from torch.utils.data import Dataset
 
 
@@ -26,9 +27,13 @@ class AutoDriveDataset(Dataset):
         """
         self.is_train = is_train
         self.transform = transform
-        self.root = cfg.DATASET.ROOT
+        self.img_root = cfg.DATASET.DATAROOT
+        self.label_root = cfg.DATASET.LABELROOT
+        self.mask_root = cfg.DATASET.MASKROOT
         self.image_set = cfg.DATASET.TRAIN_SET
-       
+        self.label_list = os.listdir(cfg.DATASET.LABELROOT)
+        self.mask_list = os.listdir(cfg.DATASET.MASKROOT)
+
         self.db = []
 
         self.output_path = cfg.OUTPUT_DIR
@@ -41,6 +46,7 @@ class AutoDriveDataset(Dataset):
 
         self.target_type = cfg.MODEL.TARGET_TYPE
         self.image_size = np.array(cfg.MODEL.IMAGE_SIZE)
+
     
     def _get_db(self):
         """
@@ -79,6 +85,11 @@ class AutoDriveDataset(Dataset):
         cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
         cv2.warpAffine
         """
+        data = self.db[idx]
+        img = cv2.imread(data["image"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+        seg_label = cv2.imread(data["mask"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+        image = (img, seg_label)
+        target = data["label"]
         input = ...
         target = ...
         meta = ...

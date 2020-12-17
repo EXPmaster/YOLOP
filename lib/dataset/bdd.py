@@ -4,8 +4,10 @@ from __future__ import print_function
 
 import os
 import numpy as np
+import json
 
 from .AutoDriveDataset import AutoDriveDataset
+from .classify import bdd_labels
 
 
 class BddDataset(AutoDriveDataset):
@@ -23,8 +25,38 @@ class BddDataset(AutoDriveDataset):
         gt_db: (list)database   [a,b,c,...]
                 a: (dictionary){'image':, 'information':, ......}
         """
-        gt_db = ...
+        gt_db = []
+        for index in range(len(self.label_list)):
+            rec = []
+            mask_path = self.mask_list[index]
+            label_path = self.label_list[index]
+            image_path = mask_path.replace(self.mask_root,self.img_root).replace(".png",".jpg")
+            
+            label = json.load(open(label_path))
+            data = label['frames'][0]['objects']
+            data = self.filter_data(data)
+            gt = np.zeros(len(data), 5)
+            for idx, obj in enumerate(data):
+                gt[idx][0] = bdd_labels[obj["category"]]
+                bbox = obj["box2d"]
+                gt[idx][1:] = [bbox["x1"], bbox["y1"], bbox["x2"], bbox["y2"]]
+                
+            rec.append({
+                'image': image_path,
+                'label': gt,
+                'mask': mask_path
+            })
+
+            gt_db.extend(rec)
+
         return gt_db
+
+    def filter_data(self, data):
+        remain = []
+        for obj in data:
+            if obj.has_key('box2d'):
+                remain.append(obj)
+        return remain
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         """  
