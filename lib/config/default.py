@@ -31,8 +31,16 @@ _C.MODEL.PRETRAINED = ''
 _C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
+# loss params
 _C.LOSS = CN(new_allowed=True)
 _C.LOSS.LOSS_NAME = ''
+_C.LOSS.FL_GAMMA = 0.0  # focal loss gamma
+_C.LOSS.CLS_POS_WEIGHT = 1.0  # classification loss positive weights
+_C.LOSS.OBJ_POS_WEIGHT = 1.0  # object loss positive weights
+_C.LOSS.BOX_GAIN = 0.05  # box loss gain
+_C.LOSS.CLS_GAIN = 0.5  # classification loss gain
+_C.LOSS.OBJ_GAIN = 1.0  # object loss gain
+
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
@@ -50,6 +58,10 @@ _C.DATASET.FLIP = True
 _C.DATASET.SCALE_FACTOR = 0.25
 _C.DATASET.ROT_FACTOR = 30
 _C.DATASET.COLOR_RGB = False
+_C.DATASET.HSV_H = 0.015  # image HSV-Hue augmentation (fraction)
+_C.DATASET.HSV_S = 0.7  # image HSV-Saturation augmentation (fraction)
+_C.DATASET.HSV_V = 0.4  # image HSV-Value augmentation (fraction)
+# TODO: more augmet params to add
 
 # train
 _C.TRAIN = CN(new_allowed=True)
@@ -71,6 +83,9 @@ _C.TRAIN.END_EPOCH = 140
 _C.TRAIN.VAL_FREQ = 10
 _C.TRAIN.BATCH_SIZE_PER_GPU = 32
 _C.TRAIN.SHUFFLE = True
+
+_C.TRAIN.IOU_THRESHOLD = 0.2
+_C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
 # testing
 _C.TEST = CN(new_allowed=True)

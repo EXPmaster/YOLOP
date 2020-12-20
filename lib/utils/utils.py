@@ -54,6 +54,7 @@ def create_logger(cfg, cfg_path, phase='train'):
 
     return logger, str(final_output_dir), str(tensorboard_log_dir)
 
+
 def get_optimizer(cfg, model):
     optimizer = None
     if cfg.TRAIN.OPTIMIZER == 'sgd':
@@ -72,12 +73,14 @@ def get_optimizer(cfg, model):
 
     return optimizer
 
+
 def save_checkpoint(states, is_best, output_dir,
                     filename='checkpoint.pth'):
     torch.save(states, os.path.join(output_dir, filename))
     if is_best and 'state_dict' in states:
         torch.save(states['best_state_dict'],
                    os.path.join(output_dir, 'model_best.pth'))
+
 
 def initialize_weights(model):
     for m in model.modules():

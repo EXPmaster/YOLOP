@@ -2,3 +2,4 @@ PyYaml
 scipy
 tqdm
 yacs
+matplotlib
