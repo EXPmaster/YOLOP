@@ -11,6 +11,7 @@ from pathlib import Path
 import torch
 import torch.optim as optim
 import torch.nn as nn
+import numpy as np
 
 
 def create_logger(cfg, cfg_path, phase='train'):
@@ -118,3 +119,13 @@ def initialize_weights(model):
             m.momentum = 0.03
         elif t in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
             m.inplace = True
+
+
+def xyxy2xywh(x):
+    # Convert nx4 boxes from [x1, y1, x2, y2] to [x, y, w, h] where xy1=top-left, xy2=bottom-right
+    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
+    y[:, 0] = (x[:, 0] + x[:, 2]) / 2  # x center
+    y[:, 1] = (x[:, 1] + x[:, 3]) / 2  # y center
+    y[:, 2] = x[:, 2] - x[:, 0]  # width
+    y[:, 3] = x[:, 3] - x[:, 1]  # height
+    return y

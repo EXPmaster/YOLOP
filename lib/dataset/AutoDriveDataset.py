@@ -8,7 +8,7 @@ import random
 import torch
 import os
 from torch.utils.data import Dataset
-from utils import letterbox, augment_hsv, random_perspective, xyxy2xywh
+from ..utils import letterbox, augment_hsv, random_perspective, xyxy2xywh
 
 
 class AutoDriveDataset(Dataset):
