@@ -4,6 +4,7 @@ __pycache__/
 .tmp/
 .vscode/
 weights/
+log/
 *.pth
 *.pt
 *.tar

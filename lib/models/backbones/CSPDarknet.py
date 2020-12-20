@@ -3,8 +3,8 @@ from torch import tensor
 import torch.nn as nn
 import sys
 import math
-sys.path.append("lib/models")
-sys.path.append("lib/utils")
+# sys.path.append("lib/models")
+# sys.path.append("lib/utils")
 
 from ..common import SPP,Conv,Bottleneck,BottleneckCSP,Focus,Concat, Detect
 from torch.nn import Upsample

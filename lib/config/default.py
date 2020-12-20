@@ -99,7 +99,7 @@ _C.TEST.MODEL_FILE = ''
 
 def update_config(cfg, args):
     cfg.defrost()
-    cfg.merge_from_file(args.cfg)
+    # cfg.merge_from_file(args.cfg)
 
     if args.modelDir:
         cfg.OUTPUT_DIR = args.modelDir
@@ -123,4 +123,4 @@ def update_config(cfg, args):
             cfg.DATA_DIR, cfg.TEST.MODEL_FILE
         )
 
-    # cfg.freeze()
+    cfg.freeze()

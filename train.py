@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import argparse
 import os
 import pprint
@@ -27,17 +23,14 @@ from lib.utils.utils import save_checkpoint
 from lib.utils.utils import create_logger, select_device
 from lib.utils.autoanchor import check_anchors
 
-import lib.dataset
-import lib.models
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Multitask network')
     # general
-    parser.add_argument('--cfg',
-                        help='experiment configure file name',
-                        required=True,
-                        type=str)
+    # parser.add_argument('--cfg',
+    #                     help='experiment configure file name',
+    #                     required=True,
+    #                     type=str)
 
     # philly
     parser.add_argument('--modelDir',
@@ -47,7 +40,7 @@ def parse_args():
     parser.add_argument('--logDir',
                         help='log directory',
                         type=str,
-                        default='')
+                        default='log/')
     parser.add_argument('--dataDir',
                         help='data directory',
                         type=str,
@@ -182,7 +175,7 @@ def main():
         # train for one epoch
         train(cfg, train_loader, model, criterion, optimizer, epoch, writer_dict, rank)
         
-        lr_scheduler.step()
+        lr_scheduler.step(epoch)
 
         # evaluate on validation set
         if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
