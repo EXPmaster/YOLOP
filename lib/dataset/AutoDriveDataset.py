@@ -4,16 +4,18 @@ from __future__ import print_function
 
 import cv2
 import numpy as np
+import random
 import torch
 import os
 from torch.utils.data import Dataset
+from utils import letterbox, augment_hsv, random_perspective, xyxy2xywh
 
 
 class AutoDriveDataset(Dataset):
     """
     A general Dataset 用于实现一些通用服务
     """
-    def __init__(self, cfg, is_train, transform=None):
+    def __init__(self, cfg, is_train, inputsize=640, transform=None):
         """
         initial all the characteristic
 
@@ -26,7 +28,9 @@ class AutoDriveDataset(Dataset):
         None
         """
         self.is_train = is_train
+        self.cfg = cfg.DATASET
         self.transform = transform
+        self.inputsize = inputsize
         self.img_root = cfg.DATASET.DATAROOT
         self.label_root = cfg.DATASET.LABELROOT
         self.mask_root = cfg.DATASET.MASKROOT
@@ -88,12 +92,67 @@ class AutoDriveDataset(Dataset):
         data = self.db[idx]
         img = cv2.imread(data["image"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         seg_label = cv2.imread(data["mask"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-        image = (img, seg_label)
-        target = data["label"]
-        input = ...
-        target = ...
-        meta = ...
-        return input, target, meta
+        resized_shape = self.inputsize
+        h0, w0 = img.shape[:2]  # orig hw
+        r = resized_shape / max(h0, w0)  # resize image to img_size
+        if r != 1:  # always resize down, only resize up if training with augmentation
+            interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
+            img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+        w, h = img.shape[:2]
+        image, ratio, pad = letterbox(img, resized_shape, auto=False, scaleup=True)
+        shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
+        
+        det_label = data["label"]
+        if det_label.size > 0:
+                # Normalized xywh to pixel xyxy format
+                labels = det_label.copy()
+                labels[:, 1] = ratio[0] * w * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
+                labels[:, 2] = ratio[1] * h * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
+                labels[:, 3] = ratio[0] * w * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
+                labels[:, 4] = ratio[1] * h * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
+
+        if self.is_train:
+            combination = (image, seg_label)
+            img, seg_label, labels = random_perspective(combination, labels,
+                                            degrees=self.cfg.ROT_FACTOR,
+                                            translate=self.cfg.TRANSLATE,
+                                            scale=self.cfg.SCALE_FACTOR,
+                                            shear=self.cfg.SHEAR)
+            augment_hsv(img, hgain=self.cfg.HSV_H, sgain=self.cfg.HSV_S, vgain=self.cfg.HSV_V)
+        
+            if len(labels):
+                # convert xyxy to xywh
+                labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])
+
+                # Normalize coordinates 0 - 1
+                labels[:, [2, 4]] /= img.shape[0]  # height
+                labels[:, [1, 3]] /= img.shape[1]  # width
+
+            if self.is_train:
+                # random left-right flip
+                lr_flip = True
+                if lr_flip and random.random() < 0.5:
+                    img = np.fliplr(img)
+                    if len(labels):
+                        labels[:, 1] = 1 - labels[:, 1]
+
+                # random up-down flip
+                ud_flip = False
+                if ud_flip and random.random() < 0.5:
+                    img = np.flipud(img)
+                    if len(labels):
+                        labels[:, 2] = 1 - labels[:, 2]
+
+            labels_out = torch.zeros((len(labels), 6))
+            if len(labels):
+                labels_out[:, 1:] = torch.from_numpy(labels)
+
+        # Convert
+        img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        img = np.ascontiguousarray(img)
+        target = [labels, seg_label]
+        
+        return img, target
 
     def select_data(self, db):
         """
