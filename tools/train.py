@@ -24,7 +24,7 @@ from lib.core.function import validate
 from lib.models import get_net
 from lib.utils.utils import get_optimizer
 from lib.utils.utils import save_checkpoint
-from lib.utils.utils import create_logger
+from lib.utils.utils import create_logger, select_device
 from lib.utils.autoanchor import check_anchors
 
 import lib.dataset
@@ -104,7 +104,7 @@ def main():
     if rank != -1:
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
 
-    # device = select_device(opt.device, batch_size=opt.batch_size)
+    device = select_device(logger, batch_size=cfg.BATCH_SIZE)
     # if args.local_rank != -1:
     #     assert torch.cuda.device_count() > opt.local_rank
     #     torch.cuda.set_device(opt.local_rank)
@@ -146,7 +146,7 @@ def main():
     )
 
     # define loss function (criterion) and optimizer
-    criterion = get_loss(cfg).cuda()
+    criterion = get_loss(cfg, device=device).cuda()
     optimizer = get_optimizer(cfg, model)
 
     # load checkpoint model

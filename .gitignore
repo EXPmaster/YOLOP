@@ -3,6 +3,7 @@ __pycache__/
 .idea/
 .tmp/
 .vscode/
+weights/
 *.pth
 *.pt
 *.tar
