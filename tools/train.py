@@ -25,6 +25,7 @@ from lib.models import get_net
 from lib.utils.utils import get_optimizer
 from lib.utils.utils import save_checkpoint
 from lib.utils.utils import create_logger
+from lib.utils.autoanchor import check_anchors
 
 import lib.dataset
 import lib.models
@@ -172,6 +173,9 @@ def main():
         optimizer.load_state_dict(checkpoint['optimizer'])
         logger.info("=> loaded checkpoint '{}' (epoch {})".format(
             checkpoint_file, checkpoint['epoch']))
+    else:
+        if cfg.NEED_AUTOANCHOR:
+            check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
     # training
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):

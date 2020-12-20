@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from PIL import Image, ImageDraw
 
+
 def autopad(k, p=None):  # kernel, padding
     # Pad to 'same'
     if p is None:

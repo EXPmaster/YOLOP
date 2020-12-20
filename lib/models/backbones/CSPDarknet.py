@@ -6,10 +6,10 @@ import math
 sys.path.append("lib/models")
 sys.path.append("lib/utils")
 
-from common import SPP,Conv,Bottleneck,BottleneckCSP,Focus,Concat, Detect
+from ..common import SPP,Conv,Bottleneck,BottleneckCSP,Focus,Concat, Detect
 from torch.nn import Upsample
 
-from utils import initialize_weights
+from lib.utils import initialize_weights
 
 CSPDarknet_s = [
 [ -1, Focus, [3, 32, 3]],
@@ -68,7 +68,7 @@ class CSPDarknet(nn.Module):
         super(CSPDarknet, self).__init__()
         layers, save= [], []
         self.nc = 13    #output category num
-        self.detector_index  = -1
+        self.detector_index = -1
 
         # Build model
         for i, (from_,block,args) in enumerate(block_cfg):

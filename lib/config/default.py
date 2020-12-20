@@ -15,6 +15,7 @@ _C.GPUS = (0,)
 _C.WORKERS = 4
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = False
+_C.NEED_AUTOANCHOR = True
 
 # Cudnn related params
 _C.CUDNN = CN()
@@ -75,6 +76,7 @@ _C.TRAIN.SHUFFLE = True
 _C.TEST = CN(new_allowed=True)
 _C.TEST.BATCH_SIZE_PER_GPU = 32
 _C.TEST.MODEL_FILE = ''
+
 
 def update_config(cfg, args):
     cfg.defrost()
