@@ -32,7 +32,7 @@ class BddDataset(AutoDriveDataset):
         for index in range(len(label_list)):
             mask_path = str(mask_list[index])
             label_path = str(label_list[index])
-            image_path = mask_path.replace(str(self.mask_root), str(self.img_root)).replace(".png",".jpg")
+            image_path = mask_path.replace(str(self.mask_root), str(self.img_root)).replace(".png", ".jpg")
             
             label = json.load(open(label_path))
             data = label['frames'][0]['objects']

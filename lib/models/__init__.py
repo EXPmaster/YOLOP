@@ -1,1 +1,1 @@
-from .factory import get_net
+from .backbones.CSPDarknet import get_net

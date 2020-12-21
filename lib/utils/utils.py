@@ -27,8 +27,8 @@ def create_logger(cfg, cfg_path, phase='train'):
     final_output_dir = root_output_dir / dataset / model / cfg_path
 
     if not final_output_dir.exists():
-            print('=> creating {}'.format(final_output_dir))
-            final_output_dir.mkdir()
+        print('=> creating {}'.format(final_output_dir))
+        final_output_dir.mkdir()
 
     time_str = time.strftime('%Y-%m-%d-%H-%M')
     log_file = '{}_{}_{}.log'.format(cfg_path, time_str, phase)
@@ -47,7 +47,7 @@ def create_logger(cfg, cfg_path, phase='train'):
 
     if not tensorboard_log_dir.exists():
         print('=> creating {}'.format(tensorboard_log_dir))
-        tensorboard_log_dir.mkdir()
+        tensorboard_log_dir.mkdir(parents=True)
 
     return logger, str(final_output_dir), str(tensorboard_log_dir)
 

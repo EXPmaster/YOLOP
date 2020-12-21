@@ -18,7 +18,10 @@ class Conv(nn.Module):
         super(Conv, self).__init__()
         self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p), groups=g, bias=False)
         self.bn = nn.BatchNorm2d(c2)
-        self.act = nn.Hardswish() if act else nn.Identity()
+        try:
+            self.act = nn.Hardswish() if act else nn.Identity()
+        except:
+            self.act = nn.Identity()
 
     def forward(self, x):
         return self.act(self.bn(self.conv(x)))
@@ -57,6 +60,7 @@ class BottleneckCSP(nn.Module):
         y1 = self.cv3(self.m(self.cv1(x)))
         y2 = self.cv2(x)
         return self.cv4(self.act(self.bn(torch.cat((y1, y2), dim=1))))
+
 
 class SPP(nn.Module):
     # Spatial pyramid pooling layer used in YOLOv3-SPP

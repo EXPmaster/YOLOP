@@ -45,7 +45,7 @@ _C.DATASET = CN(new_allowed=True)
 _C.DATASET.DATAROOT = '/home/mwliao/bdd/bdd100k/images/100k'
 _C.DATASET.LABELROOT = '/home/mwliao/bdd/bdd100k/labels/100k'
 _C.DATASET.MASKROOT = '/home/mwliao/bdd/bdd100k/bdd_seg_gt'
-_C.DATASET.DATASET = ''
+_C.DATASET.DATASET = 'BddDataset'
 _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'val'
 _C.DATASET.DATA_FORMAT = 'jpg'
