@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import random
 import torch
-import os
+from pathlib import Path
 from torch.utils.data import Dataset
 from ..utils import letterbox, augment_hsv, random_perspective, xyxy2xywh
 
@@ -27,12 +27,18 @@ class AutoDriveDataset(Dataset):
         self.cfg = cfg.DATASET
         self.transform = transform
         self.inputsize = inputsize
-        self.img_root = cfg.DATASET.DATAROOT
-        self.label_root = cfg.DATASET.LABELROOT
-        self.mask_root = cfg.DATASET.MASKROOT
-        self.image_set = cfg.DATASET.TRAIN_SET
-        self.label_list = os.listdir(cfg.DATASET.LABELROOT)
-        self.mask_list = os.listdir(cfg.DATASET.MASKROOT)
+        img_root = Path(cfg.DATASET.DATAROOT)
+        label_root = Path(cfg.DATASET.LABELROOT)
+        mask_root = Path(cfg.DATASET.MASKROOT)
+        if is_train:
+            indicator = cfg.DATASET.TRAIN_SET
+        else:
+            indicator = cfg.DATASET.TEST_SET
+        self.img_root = img_root / indicator
+        self.label_root = label_root / indicator
+        self.mask_root = mask_root / indicator
+        self.label_list = self.img_root.iterdir()
+        self.mask_list = self.mask_root.iterdir()
 
         self.db = []
 
@@ -100,12 +106,12 @@ class AutoDriveDataset(Dataset):
         
         det_label = data["label"]
         if det_label.size > 0:
-                # Normalized xywh to pixel xyxy format
-                labels = det_label.copy()
-                labels[:, 1] = ratio[0] * w * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
-                labels[:, 2] = ratio[1] * h * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
-                labels[:, 3] = ratio[0] * w * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
-                labels[:, 4] = ratio[1] * h * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
+            # Normalized xywh to pixel xyxy format
+            labels = det_label.copy()
+            labels[:, 1] = ratio[0] * w * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
+            labels[:, 2] = ratio[1] * h * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
+            labels[:, 3] = ratio[0] * w * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
+            labels[:, 4] = ratio[1] * h * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
 
         if self.is_train:
             combination = (image, seg_label)

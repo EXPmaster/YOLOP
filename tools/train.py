@@ -1,7 +1,9 @@
 import argparse
-import os
-import pprint
+import os, sys
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(BASE_DIR)
 
+import pprint
 import torch
 import torch.nn.parallel
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -71,7 +73,7 @@ def main():
     # TODO: handle distributed training logger
     # set the logger, tb_log_dir means tensorboard logdir
     logger, final_output_dir, tb_log_dir = create_logger(
-        cfg, args.cfg, 'train')
+        cfg, args.logDir, 'train')
 
     logger.info(pprint.pformat(args))
     logger.info(cfg)

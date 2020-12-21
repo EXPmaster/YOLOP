@@ -42,12 +42,12 @@ _C.LOSS.OBJ_GAIN = 1.0  # object loss gain
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
-_C.DATASET.DATAROOT = ''
-_C.DATASET.LABELROOT = ''
-_C.DATASET.MASKROOT = ''
+_C.DATASET.DATAROOT = '/home/mwliao/bdd/bdd100k/images/100k'
+_C.DATASET.LABELROOT = '/home/mwliao/bdd/bdd100k/labels/100k'
+_C.DATASET.MASKROOT = '/home/mwliao/bdd/bdd100k/bdd_seg_gt'
 _C.DATASET.DATASET = ''
 _C.DATASET.TRAIN_SET = 'train'
-_C.DATASET.TEST_SET = 'valid'
+_C.DATASET.TEST_SET = 'val'
 _C.DATASET.DATA_FORMAT = 'jpg'
 _C.DATASET.SELECT_DATA = False
 
@@ -103,20 +103,13 @@ def update_config(cfg, args):
     if args.logDir:
         cfg.LOG_DIR = args.logDir
 
-    if args.dataDir:
-        cfg.DATA_DIR = args.dataDir
-
-    cfg.DATASET.ROOT = os.path.join(
-        cfg.DATA_DIR, cfg.DATASET.ROOT
-    )
-
-    cfg.MODEL.PRETRAINED = os.path.join(
-        cfg.DATA_DIR, cfg.MODEL.PRETRAINED
-    )
-
-    if cfg.TEST.MODEL_FILE:
-        cfg.TEST.MODEL_FILE = os.path.join(
-            cfg.DATA_DIR, cfg.TEST.MODEL_FILE
-        )
+    # cfg.MODEL.PRETRAINED = os.path.join(
+    #     cfg.DATA_DIR, cfg.MODEL.PRETRAINED
+    # )
+    #
+    # if cfg.TEST.MODEL_FILE:
+    #     cfg.TEST.MODEL_FILE = os.path.join(
+    #         cfg.DATA_DIR, cfg.TEST.MODEL_FILE
+    #     )
 
     cfg.freeze()

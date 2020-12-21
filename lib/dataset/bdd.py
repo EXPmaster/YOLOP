@@ -27,19 +27,20 @@ class BddDataset(AutoDriveDataset):
         """
         gt_db = []
         width, height = self.cfg.MODEL.IMAGE_SIZE
-        for index in range(len(self.label_list)):
-            rec = []
-            mask_path = self.mask_list[index]
-            label_path = self.label_list[index]
-            image_path = mask_path.replace(self.mask_root,self.img_root).replace(".png",".jpg")
+        label_list = list(self.label_list)
+        mask_list = list(self.mask_list)
+        for index in range(len(label_list)):
+            mask_path = str(mask_list[index])
+            label_path = str(label_list[index])
+            image_path = mask_path.replace(str(self.mask_root), str(self.img_root)).replace(".png",".jpg")
             
             label = json.load(open(label_path))
             data = label['frames'][0]['objects']
             data = self.filter_data(data)
             gt = np.zeros(len(data), 5)
             for idx, obj in enumerate(data):
-                category=obj['category']
-                if (category == "traffic light"):
+                category = obj['category']
+                if category == "traffic light":
                     color = obj['attributes']['trafficLightColor']
                     category = "tl_" + color
                 if category in id_dict.keys():
@@ -48,17 +49,17 @@ class BddDataset(AutoDriveDataset):
                     x2 = float(obj['box2d']['x2'])
                     y2 = float(obj['box2d']['y2'])
                     cls_id = id_dict[category]
-                gt[idx][0] = cls_id
-                box = convert((width,height),(x1,x2,y1,y2))
-                gt[idx][1:] = list(box)
+                    gt[idx][0] = cls_id
+                    box = convert((width, height), (x1, x2, y1, y2))
+                    gt[idx][1:] = list(box)
                 
-            rec.append({
+            rec = list({
                 'image': image_path,
                 'label': gt,
                 'mask': mask_path
             })
 
-            gt_db.extend(rec)
+            gt_db += rec
         return gt_db
 
     def filter_data(self, data):
