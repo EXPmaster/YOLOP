@@ -157,9 +157,9 @@ class AutoDriveDataset(Dataset):
         # Convert
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
-        target = [labels, seg_label]
+        target = [torch.from_numpy(labels), torch.from_numpy(seg_label)]
         
-        return img, target
+        return torch.from_numpy(img), target
 
     def select_data(self, db):
         """
@@ -174,4 +174,8 @@ class AutoDriveDataset(Dataset):
         """
         db_selected = ...
         return db_selected
+
+    @staticmethod
+    def collate_fn(batch):
+        ...
 

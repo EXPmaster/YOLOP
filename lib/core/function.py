@@ -24,10 +24,13 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
 
     start = time.time()
     for i, (input, target, meta) in enumerate(train_loader):
+        print(input)
         data_time.update(time.time() - start)
         
         outputs = model(input)
-        target = target.cuda(non_blocking=True)
+        if not config.DEBUG:
+            input = input.cuda()
+            target = target.cuda(non_blocking=True)
         
         if isinstance(outputs, list):
             total_loss, head_losses = criterion(outputs[0], target)

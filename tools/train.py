@@ -93,14 +93,15 @@ def main():
     # bulid up model
     model = get_net(cfg)
     # DP mode
-    if rank == -1 and torch.cuda.device_count() > 1:
+    if rank == -1 and torch.cuda.device_count() > 1 and not cfg.DEBUG:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
     # DDP mode
     if rank != -1:
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
 
-    device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU)
+    device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU) if not cfg.DEBUG \
+        else select_device(logger, 'cpu')
     # if args.local_rank != -1:
     #     assert torch.cuda.device_count() > opt.local_rank
     #     torch.cuda.set_device(opt.local_rank)
@@ -149,7 +150,7 @@ def main():
     print('load data finished')
 
     # define loss function (criterion) and optimizer
-    criterion = get_loss(cfg, device=device).cuda()
+    criterion = get_loss(cfg, device=device)
     optimizer = get_optimizer(cfg, model)
 
     # load checkpoint model
