@@ -1,14 +1,14 @@
-import os
 import numpy as np
 import json
 
 from .AutoDriveDataset import AutoDriveDataset
 from .convert import convert, id_dict
+from tqdm import tqdm
 
 
 class BddDataset(AutoDriveDataset):
-    def __init__(self, cfg, is_train, transform=None):
-        super().__init__(cfg, is_train, transform)
+    def __init__(self, cfg, is_train, inputsize, transform=None):
+        super().__init__(cfg, is_train, inputsize, transform)
         self.db = self._get_db()
         self.cfg = cfg
 
@@ -25,19 +25,18 @@ class BddDataset(AutoDriveDataset):
         mask: path of the segmetation label
         label: [cls_id, x, y, w, h]
         """
+        print('building database...')
         gt_db = []
         width, height = self.cfg.MODEL.IMAGE_SIZE
-        label_list = list(self.label_list)
-        mask_list = list(self.mask_list)
-        for index in range(len(label_list)):
-            mask_path = str(mask_list[index])
-            label_path = str(label_list[index])
+        for mask in tqdm(list(self.mask_list)[:100]):
+            mask_path = str(mask)
+            label_path = mask_path.replace(str(self.mask_root), str(self.label_root)).replace(".png", ".json")
             image_path = mask_path.replace(str(self.mask_root), str(self.img_root)).replace(".png", ".jpg")
-            
-            label = json.load(open(label_path))
+            with open(label_path, 'r') as f:
+                label = json.load(f)
             data = label['frames'][0]['objects']
             data = self.filter_data(data)
-            gt = np.zeros(len(data), 5)
+            gt = np.zeros((len(data), 5))
             for idx, obj in enumerate(data):
                 category = obj['category']
                 if category == "traffic light":
@@ -53,19 +52,20 @@ class BddDataset(AutoDriveDataset):
                     box = convert((width, height), (x1, x2, y1, y2))
                     gt[idx][1:] = list(box)
                 
-            rec = list({
+            rec = [{
                 'image': image_path,
                 'label': gt,
                 'mask': mask_path
-            })
+            }]
 
             gt_db += rec
+        print('database build finish')
         return gt_db
 
     def filter_data(self, data):
         remain = []
         for obj in data:
-            if obj.has_key('box2d'):
+            if 'box2d' in obj.keys():  # obj.has_key('box2d'):
                 remain.append(obj)
         return remain
 

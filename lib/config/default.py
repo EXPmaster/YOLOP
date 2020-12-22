@@ -5,13 +5,14 @@ from yacs.config import CfgNode as CN
 
 _C = CN()
 
-_C.OUTPUT_DIR = ''
+_C.OUTPUT_DIR = 'weights/'
 _C.LOG_DIR = ''
 _C.GPUS = (0,)
 _C.WORKERS = 4
+_C.PIN_MEMORY = False
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = False
-_C.NEED_AUTOANCHOR = True
+_C.NEED_AUTOANCHOR = False
 
 # Cudnn related params
 _C.CUDNN = CN()
@@ -81,7 +82,7 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
 _C.TRAIN.VAL_FREQ = 10
-_C.TRAIN.BATCH_SIZE_PER_GPU = 32
+_C.TRAIN.BATCH_SIZE_PER_GPU = 8
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2

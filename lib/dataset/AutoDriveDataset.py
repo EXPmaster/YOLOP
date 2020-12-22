@@ -24,7 +24,7 @@ class AutoDriveDataset(Dataset):
         None
         """
         self.is_train = is_train
-        self.cfg = cfg.DATASET
+        self.cfg = cfg
         self.transform = transform
         self.inputsize = inputsize
         img_root = Path(cfg.DATASET.DATAROOT)
@@ -37,7 +37,7 @@ class AutoDriveDataset(Dataset):
         self.img_root = img_root / indicator
         self.label_root = label_root / indicator
         self.mask_root = mask_root / indicator
-        self.label_list = self.img_root.iterdir()
+        # self.label_list = self.label_root.iterdir()
         self.mask_list = self.mask_root.iterdir()
 
         self.db = []
@@ -50,8 +50,8 @@ class AutoDriveDataset(Dataset):
         self.flip = cfg.DATASET.FLIP
         self.color_rgb = cfg.DATASET.COLOR_RGB
 
-        self.target_type = cfg.MODEL.TARGET_TYPE
-        self.image_size = np.array(cfg.MODEL.IMAGE_SIZE)
+        # self.target_type = cfg.MODEL.TARGET_TYPE
+        self.shapes = np.array(cfg.MODEL.IMAGE_SIZE)
 
     
     def _get_db(self):
@@ -95,13 +95,15 @@ class AutoDriveDataset(Dataset):
         img = cv2.imread(data["image"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         seg_label = cv2.imread(data["mask"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         resized_shape = self.inputsize
+        if isinstance(resized_shape, list):
+            resized_shape = max(resized_shape)
         h0, w0 = img.shape[:2]  # orig hw
         r = resized_shape / max(h0, w0)  # resize image to img_size
         if r != 1:  # always resize down, only resize up if training with augmentation
             interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
             img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
         w, h = img.shape[:2]
-        image, ratio, pad = letterbox(img, resized_shape, auto=False, scaleup=True)
+        (image, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=True)
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
         
         det_label = data["label"]
@@ -115,12 +117,15 @@ class AutoDriveDataset(Dataset):
 
         if self.is_train:
             combination = (image, seg_label)
-            img, seg_label, labels = random_perspective(combination, labels,
-                                            degrees=self.cfg.ROT_FACTOR,
-                                            translate=self.cfg.TRANSLATE,
-                                            scale=self.cfg.SCALE_FACTOR,
-                                            shear=self.cfg.SHEAR)
-            augment_hsv(img, hgain=self.cfg.HSV_H, sgain=self.cfg.HSV_S, vgain=self.cfg.HSV_V)
+            (img, seg_label), labels = random_perspective(
+                combination=combination,
+                targets=labels,
+                degrees=self.cfg.DATASET.ROT_FACTOR,
+                translate=self.cfg.DATASET.TRANSLATE,
+                scale=self.cfg.DATASET.SCALE_FACTOR,
+                shear=self.cfg.DATASET.SHEAR
+            )
+            augment_hsv(img, hgain=self.cfg.DATASET.HSV_H, sgain=self.cfg.DATASET.HSV_S, vgain=self.cfg.DATASET.HSV_V)
         
             if len(labels):
                 # convert xyxy to xywh

@@ -20,12 +20,14 @@ def check_anchor_order(m):
 
 def check_anchors(dataset, model, thr=4.0, imgsz=640):
     # Check anchor fit to data, recompute if necessary
-    print('\nAnalyzing anchors... ', end='')
-    # m = model.module.model[-1] if hasattr(model, 'module') else model.model[-1]  # Detect()
-    m = model.model[model.detector_index]  # Detect()
-    shapes = imgsz * dataset.shapes / dataset.shapes.max(1, keepdims=True)
+    print('\nAnalyzing anchors... ')
+    m = model.module.model[model.module.detector_index] if hasattr(model, 'module')\
+        else model.model[model.detector_index]  # Detect()
+    # shapes = imgsz * dataset.shapes / dataset.shapes.max(1, keepdims=True)
+    shapes = imgsz * dataset.shapes / dataset.shapes
+    print(shapes.shape[0])
     scale = np.random.uniform(0.9, 1.1, size=(shapes.shape[0], 1))  # augment scale
-    wh = torch.tensor(np.concatenate([l[:, 3:5] * s for s, l in zip(shapes * scale, dataset.labels)])).float()  # wh
+    wh = torch.tensor(np.concatenate([l[0][:, 3:5] * s for s, l in zip(shapes * scale, dataset.labels)])).float()  # wh
 
     def metric(k):  # compute metric
         r = wh[:, None] / k[None]

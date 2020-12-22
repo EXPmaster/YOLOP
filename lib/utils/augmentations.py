@@ -6,9 +6,8 @@ import random
 import math
 
 
-def augment_hsv(combination, hgain=0.5, sgain=0.5, vgain=0.5):
+def augment_hsv(img, hgain=0.5, sgain=0.5, vgain=0.5):
     """change color hue, saturation, value"""
-    img, gray = combination
     r = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains
     hue, sat, val = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
     dtype = img.dtype  # uint8

@@ -64,7 +64,7 @@ MCnet = [
 
 
 class CSPDarknet(nn.Module):
-    def __init__(self, block_cfg,**kwargs):
+    def __init__(self, block_cfg, **kwargs):
         super(CSPDarknet, self).__init__()
         layers, save= [], []
         self.nc = 13    #output category num
@@ -103,7 +103,7 @@ class CSPDarknet(nn.Module):
                 x = cache[block.from_] if isinstance(block.from_, int) else [x if j == -1 else cache[j] for j in block.from_]       #calculate concat detect
             x = block(x)
             print(i)
-            y =None if isinstance(x,list) else x.shape
+            y = None if isinstance(x,list) else x.shape
             print(y)
             if isinstance(block, Detect):   #save detector result
                 out.append(x)

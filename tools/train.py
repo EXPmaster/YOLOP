@@ -14,6 +14,7 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 from tensorboardX import SummaryWriter
 
+import lib.dataset as dataset
 from lib.config import cfg
 from lib.config import update_config
 from lib.core.loss import get_loss
@@ -99,7 +100,7 @@ def main():
     if rank != -1:
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
 
-    device = select_device(logger, batch_size=cfg.BATCH_SIZE)
+    device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU)
     # if args.local_rank != -1:
     #     assert torch.cuda.device_count() > opt.local_rank
     #     torch.cuda.set_device(opt.local_rank)
@@ -113,16 +114,22 @@ def main():
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
     train_dataset = eval('dataset.'+cfg.DATASET.DATASET)(
-        cfg, True,  transforms.Compose([
-                                transforms.ToTensor(),
-                                normalize,
-                                ])
+        cfg=cfg,
+        is_train=True,
+        inputsize=cfg.MODEL.IMAGE_SIZE,
+        transform=transforms.Compose([
+            transforms.ToTensor(),
+            normalize,
+        ])
     )
     valid_dataset = eval('dataset.'+cfg.DATASET.DATASET)(
-        cfg, False, transforms.Compose([
-                                transforms.ToTensor(),
-                                normalize,
-                                ])
+        cfg=cfg,
+        is_train=False,
+        inputsize=cfg.MODEL.IMAGE_SIZE,
+        transform=transforms.Compose([
+            transforms.ToTensor(),
+            normalize,
+        ])
     )
 
     train_loader = torch.utils.data.DataLoader(
@@ -139,6 +146,7 @@ def main():
         num_workers=cfg.WORKERS,
         pin_memory=cfg.PIN_MEMORY
     )
+    print('load data finished')
 
     # define loss function (criterion) and optimizer
     criterion = get_loss(cfg, device=device).cuda()
@@ -173,6 +181,7 @@ def main():
             check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
     # training
+    print('=> start training...')
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):
         # train for one epoch
         train(cfg, train_loader, model, criterion, optimizer, epoch, writer_dict, rank)
