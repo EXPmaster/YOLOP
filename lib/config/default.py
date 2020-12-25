@@ -8,11 +8,12 @@ _C = CN()
 _C.OUTPUT_DIR = 'weights/'
 _C.LOG_DIR = ''
 _C.GPUS = (0,)
-_C.WORKERS = 4
+_C.WORKERS = 0
 _C.PIN_MEMORY = False
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = False
 _C.NEED_AUTOANCHOR = False
+_C.DEBUG = True
 
 # Cudnn related params
 _C.CUDNN = CN()

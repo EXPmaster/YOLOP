@@ -168,7 +168,7 @@ class AutoDriveDataset(Dataset):
         target = [labels, seg_label]
         img = self.transform(img)
         
-        return img, target
+        return torch.from_numpy(img), target
 
     def select_data(self, db):
         """
@@ -183,4 +183,8 @@ class AutoDriveDataset(Dataset):
         """
         db_selected = ...
         return db_selected
+
+    @staticmethod
+    def collate_fn(batch):
+        ...
 
