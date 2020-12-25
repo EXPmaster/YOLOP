@@ -6,8 +6,9 @@ import math
 # sys.path.append("lib/models")
 # sys.path.append("lib/utils")
 
-from ..common import SPP,Conv,Bottleneck,BottleneckCSP,Focus,Concat, Detect
+from ..common import SPP, Conv, Bottleneck, BottleneckCSP, Focus, Concat, Detect
 from torch.nn import Upsample
+from lib.utils import check_anchor_order
 
 from lib.utils import initialize_weights
 
@@ -59,7 +60,7 @@ MCnet = [
 [ -1, Conv, [32, 16, 3, 1]],
 [ -1, BottleneckCSP, [16, 8, 1, False]],
 [ -1, Upsample, [None, 2, 'nearest']],
-[ -1, Conv, [8,2,3,1]]  #segmentation output
+[ -1, Conv, [8, 2, 3, 1]]  #segmentation output
 ]
 
 
@@ -71,61 +72,69 @@ class CSPDarknet(nn.Module):
         self.detector_index = -1
 
         # Build model
-        for i, (from_,block,args) in enumerate(block_cfg):
+        for i, (from_, block, args) in enumerate(block_cfg):
             block = eval(block) if isinstance(block, str) else block  # eval strings
-            self.detector_index = i if isinstance(block, Detect) else self.detector_index
+            if block is Detect:
+                self.detector_index = i
             block_ = block(*args)
-            block_.index, block_.from_ = i , from_
+            block_.index, block_.from_ = i, from_
             layers.append(block_)
             save.extend(x % i for x in ([from_] if isinstance(from_, int) else from_) if x != -1)  # append to savelist
-        self.model, self.save = nn.Sequential(*(layers)), sorted(save)
+        self.model, self.save = nn.Sequential(*layers), sorted(save)
         self.names = [str(i) for i in range(self.nc)]
 
         # set stride、anchor for detector
-        Detector = self.model[self.detector_index] #detector
+        Detector = self.model[self.detector_index]  # detector
         if isinstance(Detector, Detect):
             s = 128  # 2x min stride
             """for  x in self.forward(torch.zeros(1, 3, s, s)):
                 print (x.shape)"""
-            Detector.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, 3, s, s))])  # forward
+            with torch.no_grad():
+                detects, _ = self.forward(torch.zeros(1, 3, s, s))
+                Detector.stride = torch.tensor([s / x.shape[-2] for x in detects])  # forward
             """print("stride"+str(Detector.stride ))"""
-            Detector.anchors /= Detector.stride.view(-1, 1, 1)  #Set the anchors for the corresponding scale
+            Detector.anchors /= Detector.stride.view(-1, 1, 1)  # Set the anchors for the corresponding scale
+            check_anchor_order(Detector)
             self.stride = Detector.stride
             self._initialize_biases()
         
         initialize_weights(self)
 
-    def forward(self,x):
+    def forward(self, x):
         cache = []
         out = []
         for i, block in enumerate(self.model):
             if block.from_ != -1:
                 x = cache[block.from_] if isinstance(block.from_, int) else [x if j == -1 else cache[j] for j in block.from_]       #calculate concat detect
             x = block(x)
-            #print(i)
-            y = None if isinstance(x,list) else x.shape
-            #print(y)
-            if isinstance(block, Detect):   #save detector result
+            # print(i)
+            y = None if isinstance(x, list) else x.shape
+            # print(y)
+            if isinstance(block, Detect):   # save detector result
                 out.append(x)
             cache.append(x if block.index in self.save else None)
         out.append(x)
+        # print(out[0][0].shape, out[0][1].shape, out[0][2].shape)
         return out
     
     def _initialize_biases(self, cf=None):  # initialize biases into Detect(), cf is class frequency
         # https://arxiv.org/abs/1708.02002 section 3.3
         # cf = torch.bincount(torch.tensor(np.concatenate(dataset.labels, 0)[:, 0]).long(), minlength=nc) + 1.
-        m = self.model[-1]  # Detect() module
+        # m = self.model[-1]  # Detect() module
+        m = self.model[self.detector_index]  # Detect() module
         for mi, s in zip(m.m, m.stride):  # from
             b = mi.bias.view(m.na, -1)  # conv.bias(255) to (3,85)
             b[:, 4] += math.log(8 / (640 / s) ** 2)  # obj (8 objects per 640 image)
             b[:, 5:] += math.log(0.6 / (m.nc - 0.99)) if cf is None else torch.log(cf / cf.sum())  # cls
             mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
+
 def get_net(is_train, **kwargs):
     bb_block_cfg = CSPDarknet_s
     m_block_cfg = MCnet
-    model = CSPDarknet(m_block_cfg,**kwargs)
+    model = CSPDarknet(m_block_cfg, **kwargs)
     return model
+
 
 if __name__ == "__main__":
     model = get_net(False)
@@ -137,5 +146,4 @@ if __name__ == "__main__":
     for detect_res in pred[0]:
         print(detect_res.shape) #detect
     print(model.training)
-        
-    
+
