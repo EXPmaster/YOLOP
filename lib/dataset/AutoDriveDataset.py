@@ -165,7 +165,7 @@ class AutoDriveDataset(Dataset):
         seg1 = self.Tensor(seg1)
         seg2 = self.Tensor(seg2)
         seg_label = torch.stack((seg1[0],seg2[0]),0)
-        target = [labels, seg_label]
+        target = [labels_out, seg_label]
         img = self.transform(img)
         
         return img, target
@@ -186,5 +186,12 @@ class AutoDriveDataset(Dataset):
 
     @staticmethod
     def collate_fn(batch):
-        ...
+        img, label = zip(*batch)
+        label_det, label_seg = [], []
+        for i, l in enumerate(label):
+            l_det, l_seg = l
+            l_det[:, 0] = i  # add target image index for build_targets()
+            label_det.append(l_det)
+            label_seg.append(l_seg)
+        return torch.stack(img, 0), [torch.cat(label_det, 0), torch.stack(label_seg, 0)]
 

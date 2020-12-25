@@ -1,18 +1,19 @@
 import torch
+from lib.utils import is_parallel
 
 
-def build_targets(predictions, targets, model):
+def build_targets(cfg, predictions, targets, model):
     # Build targets for compute_loss(), input targets(image,class,x,y,w,h)
-    # det = model.module.model[-1] if is_parallel(model) else model.model[-1]  # Detect() module
+    det = model.module.model[model.module.detector_index] if is_parallel(model) \
+        else model.model[model.detector_index]  # Detect() module
     # print(type(model))
-    det = model.model[model.detector_index]
+    # det = model.model[model.detector_index]
     # print(type(det))
     na, nt = det.na, targets.shape[0]  # number of anchors, targets
     tcls, tbox, indices, anch = [], [], [], []
     gain = torch.ones(7, device=targets.device)  # normalized to gridspace gain
     ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
     targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
-
     g = 0.5  # bias
     off = torch.tensor([[0, 0],
                         [1, 0], [0, 1], [-1, 0], [0, -1],  # j,k,l,m
@@ -28,7 +29,7 @@ def build_targets(predictions, targets, model):
         if nt:
             # Matches
             r = t[:, :, 4:6] / anchors[:, None]  # wh ratio
-            j = torch.max(r, 1. / r).max(2)[0] < model.hyp['anchor_t']  # compare
+            j = torch.max(r, 1. / r).max(2)[0] < cfg.TRAIN.ANCHOR_THRESHOLD  # compare
             # j = wh_iou(anchors, t[:, 4:6]) > model.hyp['iou_t']  # iou(3,n)=wh_iou(anchors(3,2), gwh(n,2))
             t = t[j]  # filter
 

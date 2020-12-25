@@ -25,7 +25,7 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
         else model.model[model.detector_index]  # Detect()
     # shapes = imgsz * dataset.shapes / dataset.shapes.max(1, keepdims=True)
     shapes = imgsz * dataset.shapes / dataset.shapes
-    print(shapes.shape[0])
+    # print(shapes.shape[0])
     scale = np.random.uniform(0.9, 1.1, size=(shapes.shape[0], 1))  # augment scale
     wh = torch.tensor(np.concatenate([l[0][:, 3:5] * s for s, l in zip(shapes * scale, dataset.labels)])).float()  # wh
 

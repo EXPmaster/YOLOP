@@ -12,11 +12,14 @@ import numpy as np
 
 def create_logger(cfg, cfg_path, phase='train'):
     root_output_dir = Path(cfg.OUTPUT_DIR)
-    
+    root_log_dir = Path(cfg.LOG_DIR)
     # set up outputdir
     if not root_output_dir.exists():
         print('=> creating {}'.format(root_output_dir))
         root_output_dir.mkdir()
+    if not root_log_dir.exists():
+        print('=> creating {}'.format(root_log_dir))
+        root_log_dir.mkdir()
 
     # set up logger dir
     dataset = cfg.DATASET.DATASET
@@ -25,14 +28,17 @@ def create_logger(cfg, cfg_path, phase='train'):
     cfg_path = os.path.basename(cfg_path).split('.')[0]
 
     final_output_dir = root_output_dir / dataset / model / cfg_path
-
+    final_log_dir = root_log_dir / dataset / model / cfg_path
     if not final_output_dir.exists():
         print('=> creating {}'.format(final_output_dir))
         final_output_dir.mkdir()
+    if not final_log_dir.exists():
+        print('=> creating {}'.format(final_log_dir))
+        final_log_dir.mkdir()
 
     time_str = time.strftime('%Y-%m-%d-%H-%M')
     log_file = '{}_{}_{}.log'.format(cfg_path, time_str, phase)
-    final_log_file = final_output_dir / log_file
+    final_log_file = final_log_dir / log_file
     head = '%(asctime)-15s %(message)s'
     logging.basicConfig(filename=str(final_log_file),
                         format=head)
@@ -97,8 +103,7 @@ def get_optimizer(cfg, model):
     return optimizer
 
 
-def save_checkpoint(states, is_best, output_dir,
-                    filename='checkpoint.pth'):
+def save_checkpoint(states, output_dir, filename, is_best=False):
     torch.save(states, os.path.join(output_dir, filename))
     if is_best and 'state_dict' in states:
         torch.save(states['best_state_dict'],
@@ -126,3 +131,7 @@ def xyxy2xywh(x):
     y[:, 2] = x[:, 2] - x[:, 0]  # width
     y[:, 3] = x[:, 3] - x[:, 1]  # height
     return y
+
+
+def is_parallel(model):
+    return type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)

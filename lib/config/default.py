@@ -6,14 +6,14 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.OUTPUT_DIR = 'weights/'
-_C.LOG_DIR = ''
+_C.LOG_DIR = 'log/'
 _C.GPUS = (0,)
 _C.WORKERS = 0
 _C.PIN_MEMORY = False
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = False
 _C.NEED_AUTOANCHOR = False
-_C.DEBUG = True
+_C.DEBUG = False
 
 # Cudnn related params
 _C.CUDNN = CN()
@@ -40,6 +40,7 @@ _C.LOSS.SEG_POS_WEIGHT = 1.0  # segmentation loss positive weights
 _C.LOSS.BOX_GAIN = 0.05  # box loss gain
 _C.LOSS.CLS_GAIN = 0.5  # classification loss gain
 _C.LOSS.OBJ_GAIN = 1.0  # object loss gain
+_C.LOSS.SEG_GAIN = 1.0  # segmentation loss gain
 
 
 # DATASET related params

@@ -2,7 +2,7 @@ import time
 
 
 def train(config, train_loader, model, criterion, optimizer, epoch,
-          writer_dict, logger, rank=-1):
+          writer_dict, logger, device, rank=-1):
     """
     train for one epoch
 
@@ -20,38 +20,24 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     target[1] [2,256,256]
     Returns:
     None
+
     """
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     # switch to train mode
     model.train()
-
     start = time.time()
     for i, (input, target) in enumerate(train_loader):
         data_time.update(time.time() - start)
-        # print(input.shape)
-        #print(target[0].shape)
-        #print(target[1].shape)
+        if not config.DEBUG:
+            input = input.to(device, non_blocking=True)
+            assign_target = []
+            for tgt in target:
+                assign_target.append(tgt.to(device))
+            target = assign_target
+
         outputs = model(input)
-        #outputs(2,)
-        #output[0] len:3
-        # [1,3,32,32,85]
-        # [1,3,16,16,85]
-        # [1,3,8,8,85]
-        #output[1] len:1
-        # [2,256,256]
-        #target(2,)
-        # target = target.cuda(non_blocking=True)
-        
-        # if isinstance(outputs, list):
-        #     # print(outputs[1][0].shape)
-        #     # print(len(target))
-        #     total_loss, head_losses = criterion(outputs, target)
-        #     for output in outputs[1:]:
-        #         total_loss += criterion(output, target)
-        # else:
-        # output = outputs
         total_loss, head_losses = criterion(outputs, target, model)
 
         # compute gradient and do update step
@@ -87,7 +73,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
 
 
 def validate(config, val_loader, val_dataset, model, criterion, output_dir,
-             tb_log_dir, writer_dict=None):
+             tb_log_dir, writer_dict=None, logger=None, device='cpu', rank=-1):
     """
     validata
 

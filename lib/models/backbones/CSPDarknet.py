@@ -87,12 +87,12 @@ class CSPDarknet(nn.Module):
         Detector = self.model[self.detector_index]  # detector
         if isinstance(Detector, Detect):
             s = 128  # 2x min stride
-            """for  x in self.forward(torch.zeros(1, 3, s, s)):
-                print (x.shape)"""
+            # for x in self.forward(torch.zeros(1, 3, s, s)):
+            #     print (x.shape)
             with torch.no_grad():
                 detects, _ = self.forward(torch.zeros(1, 3, s, s))
                 Detector.stride = torch.tensor([s / x.shape[-2] for x in detects])  # forward
-            """print("stride"+str(Detector.stride ))"""
+            # print("stride"+str(Detector.stride ))
             Detector.anchors /= Detector.stride.view(-1, 1, 1)  # Set the anchors for the corresponding scale
             check_anchor_order(Detector)
             self.stride = Detector.stride
@@ -107,9 +107,7 @@ class CSPDarknet(nn.Module):
             if block.from_ != -1:
                 x = cache[block.from_] if isinstance(block.from_, int) else [x if j == -1 else cache[j] for j in block.from_]       #calculate concat detect
             x = block(x)
-            # print(i)
             y = None if isinstance(x, list) else x.shape
-            # print(y)
             if isinstance(block, Detect):   # save detector result
                 out.append(x)
             cache.append(x if block.index in self.save else None)
