@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import random
 import torch
+import torchvision.transforms as transforms
 from pathlib import Path
 from torch.utils.data import Dataset
 from ..utils import letterbox, augment_hsv, random_perspective, xyxy2xywh
@@ -27,6 +28,7 @@ class AutoDriveDataset(Dataset):
         self.cfg = cfg
         self.transform = transform
         self.inputsize = inputsize
+        self.Tensor = transforms.ToTensor()
         img_root = Path(cfg.DATASET.DATAROOT)
         label_root = Path(cfg.DATASET.LABELROOT)
         mask_root = Path(cfg.DATASET.MASKROOT)
@@ -82,9 +84,8 @@ class AutoDriveDataset(Dataset):
         a: (dictionary){'image':, 'information':}
 
         Returns:
-        -input: transformed image, 先通过自己的数据增强(type:numpy), 然后使用self.transform
-        -target: ground truth
-        -meta: information about the image
+        -image: transformed image, 先通过自己的数据增强(type:numpy), 然后使用self.transform
+        -target: ground truth(det_gt,seg_gt)
 
         function maybe useful
         cv2.imread
@@ -93,7 +94,7 @@ class AutoDriveDataset(Dataset):
         """
         data = self.db[idx]
         img = cv2.imread(data["image"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-        seg_label = cv2.imread(data["mask"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+        seg_label = cv2.imread(data["mask"], 0)
         resized_shape = self.inputsize
         if isinstance(resized_shape, list):
             resized_shape = max(resized_shape)
@@ -107,6 +108,7 @@ class AutoDriveDataset(Dataset):
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
         
         det_label = data["label"]
+        # print(det_label.shape)
         if det_label.size > 0:
             # Normalized xywh to pixel xyxy format
             labels = det_label.copy()
@@ -125,8 +127,8 @@ class AutoDriveDataset(Dataset):
                 scale=self.cfg.DATASET.SCALE_FACTOR,
                 shear=self.cfg.DATASET.SHEAR
             )
+            #print(labels.shape)
             augment_hsv(img, hgain=self.cfg.DATASET.HSV_H, sgain=self.cfg.DATASET.HSV_S, vgain=self.cfg.DATASET.HSV_V)
-        
             if len(labels):
                 # convert xyxy to xywh
                 labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])
@@ -155,9 +157,16 @@ class AutoDriveDataset(Dataset):
                 labels_out[:, 1:] = torch.from_numpy(labels)
 
         # Convert
-        img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        #img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
+        
+        _,seg1 = cv2.threshold(img,127,255,cv2.THRESH_BINARY)
+        _,seg2 = cv2.threshold(img,127,255,cv2.THRESH_BINARY_INV)
+        seg1 = self.Tensor(seg1)
+        seg2 = self.Tensor(seg2)
+        seg_label = torch.stack((seg1[0],seg2[0]),0)
         target = [labels, seg_label]
+        img = self.transform(img)
         
         return img, target
 

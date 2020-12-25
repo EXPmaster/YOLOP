@@ -102,9 +102,9 @@ class CSPDarknet(nn.Module):
             if block.from_ != -1:
                 x = cache[block.from_] if isinstance(block.from_, int) else [x if j == -1 else cache[j] for j in block.from_]       #calculate concat detect
             x = block(x)
-            print(i)
+            #print(i)
             y = None if isinstance(x,list) else x.shape
-            print(y)
+            #print(y)
             if isinstance(block, Detect):   #save detector result
                 out.append(x)
             cache.append(x if block.index in self.save else None)

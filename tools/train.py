@@ -86,21 +86,22 @@ def main():
     }
 
     # cudnn related setting
-    cudnn.benchmark = cfg.CUDNN.BENCHMARK
-    torch.backends.cudnn.deterministic = cfg.CUDNN.DETERMINISTIC
-    torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
+    # cudnn.benchmark = cfg.CUDNN.BENCHMARK
+    # torch.backends.cudnn.deterministic = cfg.CUDNN.DETERMINISTIC
+    # torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     # bulid up model
     model = get_net(cfg)
     # DP mode
-    if rank == -1 and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+    # if rank == -1 and torch.cuda.device_count() > 1:
+    #     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
-    # DDP mode
-    if rank != -1:
-        model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
+    # # DDP mode
+    # if rank != -1:
+    #     model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
 
-    device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU)
+    # device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU)
+    device = select_device(logger, 'cpu', batch_size=1)
     # if args.local_rank != -1:
     #     assert torch.cuda.device_count() > opt.local_rank
     #     torch.cuda.set_device(opt.local_rank)
@@ -132,9 +133,16 @@ def main():
         ])
     )
 
+    # train_loader = torch.utils.data.DataLoader(
+    #     train_dataset,
+    #     batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU*len(cfg.GPUS),
+    #     shuffle=cfg.TRAIN.SHUFFLE,
+    #     num_workers=cfg.WORKERS,
+    #     pin_memory=cfg.PIN_MEMORY
+    # )
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU*len(cfg.GPUS),
+        batch_size=1,
         shuffle=cfg.TRAIN.SHUFFLE,
         num_workers=cfg.WORKERS,
         pin_memory=cfg.PIN_MEMORY
@@ -149,7 +157,10 @@ def main():
     print('load data finished')
 
     # define loss function (criterion) and optimizer
-    criterion = get_loss(cfg, device=device).cuda()
+    # criterion = get_loss(cfg, device=device).cuda()
+    print(device)
+    # criterion = get_loss(cfg, device=device).cuda()
+    criterion = get_loss(cfg, device=device)
     optimizer = get_optimizer(cfg, model)
 
     # load checkpoint model

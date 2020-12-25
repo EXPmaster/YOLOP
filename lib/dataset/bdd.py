@@ -51,7 +51,6 @@ class BddDataset(AutoDriveDataset):
                     gt[idx][0] = cls_id
                     box = convert((width, height), (x1, x2, y1, y2))
                     gt[idx][1:] = list(box)
-                
             rec = [{
                 'image': image_path,
                 'label': gt,

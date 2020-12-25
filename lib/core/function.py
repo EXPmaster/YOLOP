@@ -12,7 +12,12 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     - model: 
     - criterion: (function) calculate all the loss, return total_loss, head_losses
     - writer_dict:
-
+    outputs(2,)
+    output[0] len:3, [1,3,32,32,85], [1,3,16,16,85], [1,3,8,8,85]
+    output[1] len:1, [2,256,256]
+    target(2,)
+    target[0] [1,n,5]
+    target[1] [2,256,256]
     Returns:
     None
     """
@@ -23,19 +28,31 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     model.train()
 
     start = time.time()
-    for i, (input, target, meta) in enumerate(train_loader):
+    for i, (input, target) in enumerate(train_loader):
         data_time.update(time.time() - start)
-        
+        # print(input.shape)
+        #print(target[0].shape)
+        #print(target[1].shape)
         outputs = model(input)
-        target = target.cuda(non_blocking=True)
+        #outputs(2,)
+        #output[0] len:3
+        # [1,3,32,32,85]
+        # [1,3,16,16,85]
+        # [1,3,8,8,85]
+        #output[1] len:1
+        # [2,256,256]
+        #target(2,)
+        # target = target.cuda(non_blocking=True)
         
-        if isinstance(outputs, list):
-            total_loss, head_losses = criterion(outputs[0], target)
-            for output in outputs[1:]:
-                total_loss += criterion(output, target)
-        else:
-            output = outputs
-            total_loss, head_losses = criterion(output, target)
+        # if isinstance(outputs, list):
+        #     # print(outputs[1][0].shape)
+        #     # print(len(target))
+        #     total_loss, head_losses = criterion(outputs, target)
+        #     for output in outputs[1:]:
+        #         total_loss += criterion(output, target)
+        # else:
+        # output = outputs
+        total_loss, head_losses = criterion(outputs, target, model)
 
         # compute gradient and do update step
         optimizer.zero_grad()
