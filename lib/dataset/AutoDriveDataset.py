@@ -168,7 +168,7 @@ class AutoDriveDataset(Dataset):
         target = [labels, seg_label]
         img = self.transform(img)
         
-        return torch.from_numpy(img), target
+        return img, target
 
     def select_data(self, db):
         """
