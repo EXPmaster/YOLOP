@@ -137,20 +137,20 @@ class AutoDriveDataset(Dataset):
                 labels[:, [2, 4]] /= img.shape[0]  # height
                 labels[:, [1, 3]] /= img.shape[1]  # width
 
-            if self.is_train:
-                # random left-right flip
-                lr_flip = True
-                if lr_flip and random.random() < 0.5:
-                    img = np.fliplr(img)
-                    if len(labels):
-                        labels[:, 1] = 1 - labels[:, 1]
+            # if self.is_train:
+            # random left-right flip
+            lr_flip = True
+            if lr_flip and random.random() < 0.5:
+                img = np.fliplr(img)
+                if len(labels):
+                    labels[:, 1] = 1 - labels[:, 1]
 
-                # random up-down flip
-                ud_flip = False
-                if ud_flip and random.random() < 0.5:
-                    img = np.flipud(img)
-                    if len(labels):
-                        labels[:, 2] = 1 - labels[:, 2]
+            # random up-down flip
+            ud_flip = False
+            if ud_flip and random.random() < 0.5:
+                img = np.flipud(img)
+                if len(labels):
+                    labels[:, 2] = 1 - labels[:, 2]
 
             labels_out = torch.zeros((len(labels), 6))
             if len(labels):

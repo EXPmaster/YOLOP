@@ -4,6 +4,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
 import pprint
+import time
 import torch
 import torch.nn.parallel
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -91,12 +92,13 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     # bulid up model
-
+    start_time = time.time()
     model = get_net(cfg)
     # DP mode
+    
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
-
+    
     # # DDP mode
     # if rank != -1:
     #     model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
@@ -171,8 +173,9 @@ def main():
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
 
     checkpoint_file = os.path.join(
-        final_output_dir, 'checkpoint.pth'
+        final_output_dir, 'epoch-2.pth'
     )
+    
     if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
         logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
         checkpoint = torch.load(checkpoint_file)
@@ -188,6 +191,8 @@ def main():
         if cfg.NEED_AUTOANCHOR:
             check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
+    end_time = time.time()
+    print('model loading time',start_time-end_time)
     # training
     print('=> start training...')
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):
@@ -218,7 +223,7 @@ def main():
             'epoch': epoch,
             'model': cfg.MODEL.NAME,
             'state_dict': model.state_dict(),
-            'best_state_dict': model.module.state_dict(),
+            #'best_state_dict': model.module.state_dict(),
             # 'perf': perf_indicator,
             'optimizer': optimizer.state_dict(),
         }, final_output_dir, f'epoch-{epoch}.pth')
@@ -230,7 +235,7 @@ def main():
     logger.info('=> saving final model state to {}'.format(
         final_model_state_file)
     )
-    torch.save(model.module.state_dict(), final_model_state_file)
+    torch.save(model.state_dict(), final_model_state_file)
     writer_dict['writer'].close()
 
 
