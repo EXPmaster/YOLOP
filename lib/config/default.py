@@ -7,7 +7,7 @@ _C = CN()
 
 _C.OUTPUT_DIR = 'weights/'
 _C.LOG_DIR = 'log/'
-_C.GPUS = (0,1)
+_C.GPUS = (0,)
 _C.WORKERS = 0
 _C.PIN_MEMORY = False
 _C.PRINT_FREQ = 20
@@ -83,8 +83,8 @@ _C.TRAIN.GAMMA2 = 0.0
 _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
-_C.TRAIN.VAL_FREQ = 10
-_C.TRAIN.BATCH_SIZE_PER_GPU = 4
+_C.TRAIN.VAL_FREQ = 1
+_C.TRAIN.BATCH_SIZE_PER_GPU = 16
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
@@ -92,9 +92,13 @@ _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
 # testing
 _C.TEST = CN(new_allowed=True)
-_C.TEST.BATCH_SIZE_PER_GPU = 32
+_C.TEST.BATCH_SIZE_PER_GPU = 2
 _C.TEST.MODEL_FILE = ''
-
+_C.TEST.SAVE_JSON = False
+_C.TEST.SAVE_TXT = False
+_C.TEST.PLOTS = True
+_C.TEST.NMS_CONF_THRES = 0.001
+_C.TEST.NMS_IOU_THRES = 0.6
 
 def update_config(cfg, args):
     cfg.defrost()

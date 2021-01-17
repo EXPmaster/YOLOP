@@ -10,7 +10,7 @@ import torch.nn as nn
 import numpy as np
 
 
-def create_logger(cfg, cfg_path, phase='train'):
+def create_logger(cfg, cfg_path, phase='train', rank=-1):
     root_output_dir = Path(cfg.OUTPUT_DIR)
     root_log_dir = Path(cfg.LOG_DIR)
     # set up outputdir
@@ -38,26 +38,29 @@ def create_logger(cfg, cfg_path, phase='train'):
         print('=> creating {}'.format(final_log_dir))
         final_log_dir.mkdir()
 
-    time_str = time.strftime('%Y-%m-%d-%H-%M')
-    log_file = '{}_{}_{}.log'.format(cfg_path, time_str, phase)
-    final_log_file = final_log_dir / log_file
-    head = '%(asctime)-15s %(message)s'
-    logging.basicConfig(filename=str(final_log_file),
-                        format=head)
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    console = logging.StreamHandler()
-    logging.getLogger('').addHandler(console)
+    if rank in [-1, 0]:
+        time_str = time.strftime('%Y-%m-%d-%H-%M')
+        log_file = '{}_{}_{}.log'.format(cfg_path, time_str, phase)
+        final_log_file = final_log_dir / log_file
+        head = '%(asctime)-15s %(message)s'
+        logging.basicConfig(filename=str(final_log_file),
+                            format=head)
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        console = logging.StreamHandler()
+        logging.getLogger('').addHandler(console)
 
-    # set up tensorboard_log_dir
-    tensorboard_log_dir = Path(cfg.LOG_DIR) / dataset / model / \
-        (cfg_path + '_' + time_str)
+        # set up tensorboard_log_dir
+        tensorboard_log_dir = Path(cfg.LOG_DIR) / dataset / model / \
+            (cfg_path + '_' + time_str)
 
-    if not tensorboard_log_dir.exists():
-        print('=> creating {}'.format(tensorboard_log_dir))
-        tensorboard_log_dir.mkdir(parents=True)
+        if not tensorboard_log_dir.exists():
+            print('=> creating {}'.format(tensorboard_log_dir))
+            tensorboard_log_dir.mkdir(parents=True)
 
-    return logger, str(final_output_dir), str(tensorboard_log_dir)
+        return logger, str(final_output_dir), str(tensorboard_log_dir)
+    else:
+        return None, str(final_output_dir), None
 
 
 def select_device(logger, device='', batch_size=None):
@@ -78,11 +81,13 @@ def select_device(logger, device='', batch_size=None):
         for i in range(0, ng):
             if i == 1:
                 s = ' ' * len(s)
-            logger.info("%sCUDA:%g (%s, %dMB)" % (s, i, x[i].name, x[i].total_memory / c))
+            if logger:
+                logger.info("%sCUDA:%g (%s, %dMB)" % (s, i, x[i].name, x[i].total_memory / c))
     else:
         logger.info(f'Using torch {torch.__version__} CPU')
 
-    logger.info('')  # skip a line
+    if logger:
+        logger.info('')  # skip a line
     return torch.device('cuda:0' if cuda else 'cpu')
 
 
@@ -105,10 +110,19 @@ def get_optimizer(cfg, model):
     return optimizer
 
 
-def save_checkpoint(states, output_dir, filename, is_best=False):
-    torch.save(states, os.path.join(output_dir, filename))
-    if is_best and 'state_dict' in states:
-        torch.save(states['best_state_dict'],
+def save_checkpoint(epoch, name, model, optimizer, output_dir, filename, is_best=False):
+    model_state = model.module.state_dict() if is_parallel(model) else model.state_dict()
+    checkpoint = {
+            'epoch': epoch,
+            'model': name,
+            'state_dict': model_state,
+            # 'best_state_dict': model.module.state_dict(),
+            # 'perf': perf_indicator,
+            'optimizer': optimizer.state_dict(),
+        }
+    torch.save(checkpoint, os.path.join(output_dir, filename))
+    if is_best and 'state_dict' in checkpoint:
+        torch.save(checkpoint['best_state_dict'],
                    os.path.join(output_dir, 'model_best.pth'))
 
 
@@ -120,8 +134,8 @@ def initialize_weights(model):
         elif t is nn.BatchNorm2d:
             m.eps = 1e-3
             m.momentum = 0.03
-        # elif t in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
-        elif t in [nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
+        elif t in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
+        # elif t in [nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
             m.inplace = True
 
 
@@ -137,3 +151,7 @@ def xyxy2xywh(x):
 
 def is_parallel(model):
     return type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
+
+def time_synchronized():
+    torch.cuda.synchronize() if torch.cuda.is_available() else None
+    return time.time()

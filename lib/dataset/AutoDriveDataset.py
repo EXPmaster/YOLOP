@@ -104,10 +104,11 @@ class AutoDriveDataset(Dataset):
             interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
             img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
         w, h = img.shape[:2]
-        (image, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=True)
+        (img, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=True)
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
         
         det_label = data["label"]
+        labels=[]
         # print(det_label.shape)
         if det_label.size > 0:
             # Normalized xywh to pixel xyxy format
@@ -118,7 +119,7 @@ class AutoDriveDataset(Dataset):
             labels[:, 4] = ratio[1] * h * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
 
         if self.is_train:
-            combination = (image, seg_label)
+            combination = (img, seg_label)
             (img, seg_label), labels = random_perspective(
                 combination=combination,
                 targets=labels,
@@ -152,9 +153,9 @@ class AutoDriveDataset(Dataset):
                 if len(labels):
                     labels[:, 2] = 1 - labels[:, 2]
 
-            labels_out = torch.zeros((len(labels), 6))
-            if len(labels):
-                labels_out[:, 1:] = torch.from_numpy(labels)
+        labels_out = torch.zeros((len(labels), 6))
+        if len(labels):
+            labels_out[:, 1:] = torch.from_numpy(labels)
 
         # Convert
         #img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
@@ -167,8 +168,7 @@ class AutoDriveDataset(Dataset):
         seg_label = torch.stack((seg1[0],seg2[0]),0)
         target = [labels_out, seg_label]
         img = self.transform(img)
-        
-        return img, target
+        return img, target,data["image"],shapes
 
     def select_data(self, db):
         """
@@ -186,12 +186,12 @@ class AutoDriveDataset(Dataset):
 
     @staticmethod
     def collate_fn(batch):
-        img, label = zip(*batch)
+        img, label,paths,shapes= zip(*batch)
         label_det, label_seg = [], []
         for i, l in enumerate(label):
             l_det, l_seg = l
             l_det[:, 0] = i  # add target image index for build_targets()
             label_det.append(l_det)
             label_seg.append(l_seg)
-        return torch.stack(img, 0), [torch.cat(label_det, 0), torch.stack(label_seg, 0)]
+        return torch.stack(img, 0), [torch.cat(label_det, 0), torch.stack(label_seg, 0)],paths,shapes
 
