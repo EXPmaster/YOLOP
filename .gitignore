@@ -5,6 +5,8 @@ __pycache__/
 .vscode/
 weights/
 log/
+bdd/
+subbdd/
 *.pth
 *.pt
 *.tar

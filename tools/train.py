@@ -12,6 +12,7 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
+import numpy as np
 from tensorboardX import SummaryWriter
 
 import lib.dataset as dataset
@@ -20,11 +21,13 @@ from lib.config import update_config
 from lib.core.loss import get_loss
 from lib.core.function import train
 from lib.core.function import validate
+from lib.core.general import fitness
 from lib.models import get_net
 from lib.utils.utils import get_optimizer
 from lib.utils.utils import save_checkpoint
 from lib.utils.utils import create_logger, select_device
 from lib.utils.autoanchor import check_anchors
+
 
 
 def parse_args():
@@ -91,15 +94,17 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     # bulid up model
-
+    print("begin to bulid up model")
     model = get_net(cfg)
-    # DP mode
+    
+    print("DDP mode")
+    # DPP mode
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
     # # DDP mode
-    # if rank != -1:
-    #     model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
+    if rank != -1:
+        model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
 
     # assign model params
     model.gr = 1.0
@@ -107,6 +112,9 @@ def main():
 
     device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU) if not cfg.DEBUG \
         else select_device(logger, 'cpu')
+    print('bulid model finished')
+
+    print("begin to load data")
     # if args.local_rank != -1:
     #     assert torch.cuda.device_count() > opt.local_rank
     #     torch.cuda.set_device(opt.local_rank)
@@ -152,7 +160,8 @@ def main():
         batch_size=cfg.TEST.BATCH_SIZE_PER_GPU*len(cfg.GPUS),
         shuffle=False,
         num_workers=cfg.WORKERS,
-        pin_memory=cfg.PIN_MEMORY
+        pin_memory=cfg.PIN_MEMORY,
+        collate_fn=dataset.AutoDriveDataset.collate_fn
     )
     print('load data finished')
 
@@ -186,12 +195,14 @@ def main():
             checkpoint_file, checkpoint['epoch']))
     else:
         if cfg.NEED_AUTOANCHOR:
+            print("begin check anchors")
             check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
     # training
     print('=> start training...')
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):
         # train for one epoch
+        print("begin "+str(epoch)+" epoch")
         train(cfg, train_loader, model, criterion, optimizer,
               epoch, writer_dict, logger, device, rank)
         
@@ -199,11 +210,13 @@ def main():
 
         # evaluate on validation set
         if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
-            perf_indicator = validate(
+            segment_result,results, maps, times = validate(
                 cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank
             )
+            fi = fitness(np.array(results).reshape(1, -1))  #目标检测评价指标
+            
             # TODO: validation
             # if perf_indicator >= best_perf:
             #     best_perf = perf_indicator

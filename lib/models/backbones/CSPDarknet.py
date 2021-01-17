@@ -60,7 +60,7 @@ MCnet = [
 [ -1, Conv, [32, 16, 3, 1]],
 [ -1, BottleneckCSP, [16, 8, 1, False]],
 [ -1, Upsample, [None, 2, 'nearest']],
-[ -1, Conv, [8, 2, 3, 1]]  #segmentation output
+[ -1, Conv, [8, 2, 3, 1]] #segmentation output
 ]
 
 
@@ -107,11 +107,12 @@ class CSPDarknet(nn.Module):
             if block.from_ != -1:
                 x = cache[block.from_] if isinstance(block.from_, int) else [x if j == -1 else cache[j] for j in block.from_]       #calculate concat detect
             x = block(x)
-            y = None if isinstance(x, list) else x.shape
+            """y = None if isinstance(x, list) else x.shape"""
             if isinstance(block, Detect):   # save detector result
                 out.append(x)
             cache.append(x if block.index in self.save else None)
-        out.append(x)
+        m=nn.Sigmoid()
+        out.append(m(x))
         # print(out[0][0].shape, out[0][1].shape, out[0][2].shape)
         return out
     
