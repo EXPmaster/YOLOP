@@ -1,16 +1,17 @@
 import torch
 from torch import tensor
 import torch.nn as nn
-import sys
+import sys,os
 import math
 # sys.path.append("lib/models")
 # sys.path.append("lib/utils")
-
-from ..common import SPP, Conv, Bottleneck, BottleneckCSP, Focus, Concat, Detect
+sys.path.append("/workspace/wh/projects/DaChuang")
+from lib.utils import initialize_weights
+from lib.models.common import SPP, Conv, Bottleneck, BottleneckCSP, Focus, Concat, Detect
 from torch.nn import Upsample
 from lib.utils import check_anchor_order
 
-from lib.utils import initialize_weights
+from torch.utils.tensorboard import SummaryWriter
 
 CSPDarknet_s = [
 [ -1, Focus, [3, 32, 3]],
@@ -139,10 +140,15 @@ if __name__ == "__main__":
     model = get_net(False)
     """for module in model.modules():
         print(module)"""
-    input_ = torch.randn((1, 3, 1280, 736))
-    pred = model(input_)
+    input_ = torch.randn((1, 3, 256, 256))
+    """pred = model(input_)
     print(pred[1].shape)    #segment
     for detect_res in pred[0]:
         print(detect_res.shape) #detect
-    print(model.training)
+    print(model.training)"""
+    writer = SummaryWriter()   
+    model.train()
+    writer.add_graph(model, input_)
+    pred = model(input_)
+
 

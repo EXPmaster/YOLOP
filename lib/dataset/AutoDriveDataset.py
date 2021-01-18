@@ -102,7 +102,7 @@ class AutoDriveDataset(Dataset):
         r = resized_shape / max(h0, w0)  # resize image to img_size
         if r != 1:  # always resize down, only resize up if training with augmentation
             interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
-            img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+            img = cv2.resize(img, int(h0 * r),(int(w0 * r)), interpolation=interp)
         w, h = img.shape[:2]
         (img, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=True)
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
