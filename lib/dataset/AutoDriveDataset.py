@@ -104,7 +104,7 @@ class AutoDriveDataset(Dataset):
             interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
             img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
         w, h = img.shape[:2]
-        (image, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=True)
+        (img, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=True)
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
         
         det_label = data["label"]
@@ -119,7 +119,7 @@ class AutoDriveDataset(Dataset):
             labels[:, 4] = ratio[1] * h * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
 
         if self.is_train:
-            combination = (image, seg_label)
+            combination = (img, seg_label)
             (img, seg_label), labels = random_perspective(
                 combination=combination,
                 targets=labels,
@@ -138,20 +138,20 @@ class AutoDriveDataset(Dataset):
                 labels[:, [2, 4]] /= img.shape[0]  # height
                 labels[:, [1, 3]] /= img.shape[1]  # width
 
-            if self.is_train:
-                # random left-right flip
-                lr_flip = True
-                if lr_flip and random.random() < 0.5:
-                    img = np.fliplr(img)
-                    if len(labels):
-                        labels[:, 1] = 1 - labels[:, 1]
+            # if self.is_train:
+            # random left-right flip
+            lr_flip = True
+            if lr_flip and random.random() < 0.5:
+                img = np.fliplr(img)
+                if len(labels):
+                    labels[:, 1] = 1 - labels[:, 1]
 
-                # random up-down flip
-                ud_flip = False
-                if ud_flip and random.random() < 0.5:
-                    img = np.flipud(img)
-                    if len(labels):
-                        labels[:, 2] = 1 - labels[:, 2]
+            # random up-down flip
+            ud_flip = False
+            if ud_flip and random.random() < 0.5:
+                img = np.flipud(img)
+                if len(labels):
+                    labels[:, 2] = 1 - labels[:, 2]
 
         labels_out = torch.zeros((len(labels), 6))
         if len(labels):

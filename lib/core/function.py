@@ -37,7 +37,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     # switch to train mode
     model.train()
     start = time.time()
-    flag=True
     for i, (input, target,_,_) in enumerate(train_loader):
         data_time.update(time.time() - start)
         if not config.DEBUG:
@@ -46,9 +45,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             for tgt in target:
                 assign_target.append(tgt.to(device))
             target = assign_target
-        if(flag):
-            print(input.shape)
-            flag=False
         outputs = model(input)
         total_loss, head_losses = criterion(outputs, target, model)
 
@@ -112,6 +108,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     is_coco = False #is coco dataset
     save_conf=False # save auto-label confidences
     verbose=False
+    save_hybrid=False
     log_imgs,wandb = min(16,100), None
 
     nc = 13
@@ -155,15 +152,15 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
 
         with torch.no_grad():
             t = time_synchronized()
-            print(img.shape)
-            inf_out,train_out = model(img)
+            det_out, seg_out= model(img)
+            inf_out,train_out = det_out
             t_inf += time_synchronized() - t
 
             #segment evaluation
-            _,predict=torch.max(train_out[1], 1)
+            _,predict=torch.max(seg_out, 1)
             _,gt=torch.max(target[1], 1)
-            metric.reset()
-            metric.addBatch(predict, gt)
+            metric.reset()    
+            metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
             classAcc = metric.classPixelAccuracy()
             mIoU = metric.meanIntersectionOverUnion()
@@ -176,12 +173,16 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
 
 
             if training:
-                total_loss, head_losses = criterion(train_out, target, model)   #Compute loss
+                total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
                 losses.update(total_loss.item(), img.size(0))
 
             #NMS
             t = time_synchronized()
-            output = non_max_suppression(inf_out, conf_thres=config.NMS_CONF_THRES, iou_thres=config.NMS_IOU_THRES,)
+            target[0][:, 2:] *= torch.Tensor([width, height, width, height]).to(device)  # to pixels
+            lb = [target[0][target[0][:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
+            output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6, labels=lb)
+            #output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6)
+            #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
             t_nms += time_synchronized() - t
 
         # Statistics per image
@@ -270,13 +271,13 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
 
         if config.TEST.PLOTS and batch_i < 3:
-            f = save_dir / f'test_batch{batch_i}_labels.jpg'  # labels
-            Thread(target=plot_images, args=(img, target[0], paths, f, names), daemon=True).start()
-            f = save_dir / f'test_batch{batch_i}_pred.jpg'  # predictions
-            Thread(target=plot_images, args=(img, output_to_target(output), paths, f, names), daemon=True).start()
-
+            f = save_dir +'/'+ f'test_batch{batch_i}_labels.jpg'  # labels
+            #Thread(target=plot_images, args=(img, target[0], paths, f, names), daemon=True).start()
+            f = save_dir +'/'+ f'test_batch{batch_i}_pred.jpg'  # predictions
+            #Thread(target=plot_images, args=(img, output_to_target(output), paths, f, names), daemon=True).start()
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
+
     if len(stats) and stats[0].any():
         p, r, ap, f1, ap_class = ap_per_class(*stats, plot=config.TEST.PLOTS, save_dir=save_dir, names=names)
         p, r, ap50, ap = p[:, 0], r[:, 0], ap[:, 0], ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
@@ -287,7 +288,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
 
     # Print results
     pf = '%20s' + '%12.3g' * 6  # print format
-    print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+    #print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
 
     # Print results per class
     if (verbose or (nc <= 20 and not training)) and nc > 1 and len(stats):
@@ -343,8 +344,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     segment_result = (acc_seg.avg,classAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
 
     #print segmet_result
-    print(segment_result )
-    return segment_result,(mp, mr, map50, map, losses.avg.tolist()), maps, t
+    return segment_result,(mp, mr, map50, map, losses.avg), maps, t
         
 
 

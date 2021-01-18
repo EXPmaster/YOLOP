@@ -1,9 +1,9 @@
 import os
 import shutil
 
-old_root_path = "/workspace/wh/projects/DaChuang/bdd"
-old_folders=["/bdd_seg_gt","/images","/labels/100k"]
-new_root_path = "/workspace/wh/projects/DaChuang/subbdd"
+old_root_path = "/home/mwliao/bdd/bdd100k"
+old_folders=["/bdd_seg_gt","/images/100k","/labels/100k"]
+new_root_path = "/home/zwt/DaChuang/subbdd"
 folders = ["/bdd_seg_gt","/images","/labels"]
 sub_folders = ["/train","/val"]
 

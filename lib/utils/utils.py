@@ -29,6 +29,8 @@ def create_logger(cfg, cfg_path, phase='train', rank=-1):
 
     final_output_dir = root_output_dir / dataset / model / cfg_path
     final_log_dir = root_log_dir / dataset / model / cfg_path
+    #print(final_output_dir)
+    #print(final_log_dir)
     if not final_output_dir.exists():
         print('=> creating {}'.format(final_output_dir))
         final_output_dir.mkdir()

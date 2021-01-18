@@ -4,6 +4,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
 import pprint
+import time
 import torch
 import torch.nn.parallel
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -100,10 +101,9 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     # bulid up model
-    print("begin to bulid up model")
+    start_time = time.time()
+    print("begin to bulid up model...")
     model = get_net(cfg)
-    
-    print("DDP mode")
     # DPP mode
     device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU) if not cfg.DEBUG \
         else select_device(logger, 'cpu')
@@ -115,6 +115,7 @@ def main():
         dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
 
     model = get_net(cfg).to(device)
+    print("finish build model")
 
     # define loss function (criterion) and optimizer
     criterion = get_loss(cfg, device=device)
@@ -147,10 +148,9 @@ def main():
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
 
-    # DP mode
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
-
+    
     # # DDP mode
     if rank != -1:
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
@@ -158,9 +158,6 @@ def main():
     # assign model params
     model.gr = 1.0
     model.nc = 13
-
-    device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU) if not cfg.DEBUG \
-        else select_device(logger, 'cpu')
     print('bulid model finished')
 
     print("begin to load data")
@@ -221,6 +218,36 @@ def main():
     )
     print('load data finished')
 
+    # define loss function (criterion) and optimizer
+    criterion = get_loss(cfg, device=device)
+    optimizer = get_optimizer(cfg, model)
+
+    # load checkpoint model
+    best_perf = 0.0
+    best_model = False
+    last_epoch = -1
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
+        last_epoch=last_epoch
+    )
+    begin_epoch = cfg.TRAIN.BEGIN_EPOCH
+
+    checkpoint_file = os.path.join(
+        final_output_dir, 'epoch-2.pth'
+    )
+    
+    if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
+        logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
+        checkpoint = torch.load(checkpoint_file)
+        begin_epoch = checkpoint['epoch']
+        best_perf = checkpoint['perf']
+        last_epoch = checkpoint['epoch']
+        model.load_state_dict(checkpoint['state_dict'])
+
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        logger.info("=> loaded checkpoint '{}' (epoch {})".format(
+            checkpoint_file, checkpoint['epoch']))
+    
     if rank in [-1, 0]:
         if cfg.NEED_AUTOANCHOR:
             print("begin check anchors")
@@ -229,26 +256,33 @@ def main():
     model.gr = 1.0
     model.nc = 13
 
+    end_time = time.time()
+    print('model and data loading time',end_time-start_time)
     # training
     print('=> start training...')
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):
         if rank != -1:
             train_loader.sampler.set_epoch(epoch)
         # train for one epoch
-        print("begin "+str(epoch)+" epoch")
         train(cfg, train_loader, model, criterion, optimizer,
               epoch, writer_dict, logger, device, rank)
         
-        lr_scheduler.step(epoch)
+        lr_scheduler.step()
 
         # evaluate on validation set
         if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
-            segment_result,results, maps, times = validate(
+            segment_results,detect_results, maps, times = validate(
                 cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank
             )
-            fi = fitness(np.array(results).reshape(1, -1))  #目标检测评价指标
+            fi = fitness(np.array(detect_results).reshape(1, -1))  #目标检测评价指标
+            msg = 'Epoch: [{0}]\n' \
+                      'Segment: Acc({seg_acc:.3f})    mIOU({seg_miou:.3f})    FIOU ({seg_fiou:.3f})\n' \
+                      'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5:0.95({map:.3f})  mAP@0.5({map50:.3f})'.format(
+                          epoch,  seg_acc=segment_results[0],seg_miou=segment_results[2],seg_fiou=segment_results[3],
+                          p=detect_results[0],r=detect_results[1],map=detect_results[2],map50=detect_results[3])
+            logger.info(msg)
             
             # TODO: validation
             # if perf_indicator >= best_perf:
