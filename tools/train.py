@@ -212,7 +212,10 @@ def main():
         batch_size=cfg.TEST.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
         shuffle=False,
         num_workers=cfg.WORKERS,
+<<<<<<< HEAD
+=======
         sampler=valid_sampler,
+>>>>>>> dfec1d144e754c66b996cecf3826b6bac2481380
         pin_memory=cfg.PIN_MEMORY,
         collate_fn=dataset.AutoDriveDataset.collate_fn
     )
