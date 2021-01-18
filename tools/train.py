@@ -101,7 +101,7 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     # bulid up model
-    start_time = time.time()
+    # start_time = time.time()
     print("begin to bulid up model...")
     model = get_net(cfg)
     # DPP mode
@@ -115,7 +115,7 @@ def main():
         dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
 
     model = get_net(cfg).to(device)
-    print("finish build model")
+    # print("finish build model")
 
     # define loss function (criterion) and optimizer
     criterion = get_loss(cfg, device=device)
@@ -147,7 +147,7 @@ def main():
             optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
-
+    print('rank = {}'.format(rank))
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
     
@@ -214,47 +214,12 @@ def main():
         collate_fn=dataset.AutoDriveDataset.collate_fn
     )
     print('load data finished')
-
-    # define loss function (criterion) and optimizer
-    criterion = get_loss(cfg, device=device)
-    optimizer = get_optimizer(cfg, model)
-
-    # load checkpoint model
-    best_perf = 0.0
-    best_model = False
-    last_epoch = -1
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
-        last_epoch=last_epoch
-    )
-    begin_epoch = cfg.TRAIN.BEGIN_EPOCH
-
-    checkpoint_file = os.path.join(
-        final_output_dir, 'epoch-2.pth'
-    )
-    
-    if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
-        logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
-        checkpoint = torch.load(checkpoint_file)
-        begin_epoch = checkpoint['epoch']
-        best_perf = checkpoint['perf']
-        last_epoch = checkpoint['epoch']
-        model.load_state_dict(checkpoint['state_dict'])
-
-        optimizer.load_state_dict(checkpoint['optimizer'])
-        logger.info("=> loaded checkpoint '{}' (epoch {})".format(
-            checkpoint_file, checkpoint['epoch']))
     
     if rank in [-1, 0]:
         if cfg.NEED_AUTOANCHOR:
             print("begin check anchors")
             check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
-    # assign model params
-    model.gr = 1.0
-    model.nc = 13
 
-    end_time = time.time()
-    print('model and data loading time',end_time-start_time)
     # training
     print('=> start training...')
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):

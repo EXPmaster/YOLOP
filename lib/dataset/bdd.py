@@ -23,7 +23,7 @@ class BddDataset(AutoDriveDataset):
                 a: (dictionary){'image':, 'information':, ......}
         image: image path
         mask: path of the segmetation label
-        label: [cls_id, x, y, w, h]
+        label: [cls_id, center_x//256, center_y//256, w//256, h//256] 256=IMAGE_SIZE
         """
         print('building database...')
         gt_db = []
