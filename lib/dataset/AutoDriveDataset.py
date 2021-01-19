@@ -53,8 +53,7 @@ class AutoDriveDataset(Dataset):
         self.color_rgb = cfg.DATASET.COLOR_RGB
 
         # self.target_type = cfg.MODEL.TARGET_TYPE
-        self.shapes = np.array(cfg.MODEL.IMAGE_SIZE)
-
+        self.shapes = np.array(cfg.DATASET.ORG_IMG_SIZE)
     
     def _get_db(self):
         """

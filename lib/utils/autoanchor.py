@@ -95,18 +95,17 @@ def kmean_anchors(path='./data/coco128.yaml', n=9, img_size=640, thr=4.0, gen=10
             print('%i,%i' % (round(x[0]), round(x[1])), end=',  ' if i < len(k) - 1 else '\n')  # use in *.cfg
         return k
 
-    if isinstance(path, str):  # *.yaml file
-        with open(path) as f:
-            data_dict = yaml.load(f, Loader=yaml.FullLoader)  # model dict
-        from ..dataset import BddDataset
-        dataset = BddDataset(data_dict['train'])
+    if isinstance(path, str):  # not class
+        raise TypeError('Dataset must be class, but found str')
     else:
         dataset = path  # dataset
 
+    labels = [db['label'] for db in dataset.db]
+    labels = np.vstack(labels)
     # Get label wh
-    shapes = img_size * dataset.shapes / dataset.shapes.max(1, keepdims=True)
-    wh0 = np.concatenate([l[:, 3:5] * s for s, l in zip(shapes, dataset.labels)])  # wh
-
+    shapes = img_size * dataset.shapes / dataset.shapes.max()
+    # wh0 = np.concatenate([l[:, 3:5] * shapes for l in labels])  # wh
+    wh0 = labels[:, 3:5] * shapes
     # Filter
     i = (wh0 < 3.0).any(1).sum()
     if i:

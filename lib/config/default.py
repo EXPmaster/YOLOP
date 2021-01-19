@@ -11,7 +11,7 @@ _C.GPUS = (0,)
 _C.WORKERS = 0
 _C.PIN_MEMORY = False
 _C.PRINT_FREQ = 20
-_C.AUTO_RESUME = False
+_C.AUTO_RESUME = True
 _C.NEED_AUTOANCHOR = False
 _C.DEBUG = False
 
@@ -53,6 +53,7 @@ _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'val'
 _C.DATASET.DATA_FORMAT = 'jpg'
 _C.DATASET.SELECT_DATA = False
+_C.DATASET.ORG_IMG_SIZE = [1280, 720]
 
 # training data augmentation
 _C.DATASET.FLIP = True
@@ -89,6 +90,8 @@ _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
+
+_C.TRAIN.FREEZE_SEG = True
 
 # testing
 _C.TEST = CN(new_allowed=True)
