@@ -121,6 +121,8 @@ class MultiHeadLoss(nn.Module):
 
         # bs = tobj.shape[0]  # batch size
 
+        lseg = 0 #only train detect model
+
         loss = lbox + lobj + lcls + lseg
         # return loss * bs, torch.cat((lbox, lobj, lcls, loss)).detach()
         return loss, (lbox.item(), lobj.item(), lcls.item(), lseg.item(), loss.item())

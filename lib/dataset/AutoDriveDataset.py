@@ -102,22 +102,26 @@ class AutoDriveDataset(Dataset):
         r = resized_shape / max(h0, w0)  # resize image to img_size
         if r != 1:  # always resize down, only resize up if training with augmentation
             interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
-            img = cv2.resize(img, int(h0 * r),(int(w0 * r)), interpolation=interp)
-        w, h = img.shape[:2]
+            img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+            seg_label = cv2.resize(seg_label, (int(w0 * r), int(h0 * r)), interpolation=interp)
+        h, w = img.shape[:2]
+        
         (img, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=True)
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
+        ratio = (w / w0, h / h0)
+        # print(resized_shape)
         
         det_label = data["label"]
         labels=[]
-        # print(det_label.shape)
+        
         if det_label.size > 0:
             # Normalized xywh to pixel xyxy format
             labels = det_label.copy()
-            labels[:, 1] = ratio[0] * w * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
-            labels[:, 2] = ratio[1] * h * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
-            labels[:, 3] = ratio[0] * w * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
-            labels[:, 4] = ratio[1] * h * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
-
+            labels[:, 1] = ratio[0] * resized_shape * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
+            labels[:, 2] = ratio[1] * resized_shape * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
+            labels[:, 3] = ratio[0] * resized_shape * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
+            labels[:, 4] = ratio[1] * resized_shape * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
+            
         if self.is_train:
             combination = (img, seg_label)
             (img, seg_label), labels = random_perspective(
@@ -130,6 +134,7 @@ class AutoDriveDataset(Dataset):
             )
             #print(labels.shape)
             augment_hsv(img, hgain=self.cfg.DATASET.HSV_H, sgain=self.cfg.DATASET.HSV_S, vgain=self.cfg.DATASET.HSV_V)
+
             if len(labels):
                 # convert xyxy to xywh
                 labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])
@@ -165,10 +170,10 @@ class AutoDriveDataset(Dataset):
         _,seg2 = cv2.threshold(img,127,255,cv2.THRESH_BINARY_INV)
         seg1 = self.Tensor(seg1)
         seg2 = self.Tensor(seg2)
-        seg_label = torch.stack((seg1[0],seg2[0]),0)
+        seg_label = torch.stack((seg2[0],seg1[0]),0)
         target = [labels_out, seg_label]
         img = self.transform(img)
-        return img, target,data["image"],shapes
+        return img, target, data["image"], shapes
 
     def select_data(self, db):
         """
@@ -186,12 +191,12 @@ class AutoDriveDataset(Dataset):
 
     @staticmethod
     def collate_fn(batch):
-        img, label,paths,shapes= zip(*batch)
+        img, label, paths, shapes= zip(*batch)
         label_det, label_seg = [], []
         for i, l in enumerate(label):
             l_det, l_seg = l
             l_det[:, 0] = i  # add target image index for build_targets()
             label_det.append(l_det)
             label_seg.append(l_seg)
-        return torch.stack(img, 0), [torch.cat(label_det, 0), torch.stack(label_seg, 0)],paths,shapes
+        return torch.stack(img, 0), [torch.cat(label_det, 0), torch.stack(label_seg, 0)], paths, shapes
 
