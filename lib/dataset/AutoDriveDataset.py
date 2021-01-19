@@ -163,7 +163,8 @@ class AutoDriveDataset(Dataset):
             labels_out[:, 1:] = torch.from_numpy(labels)
 
         # Convert
-        #img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        # img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        # img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
         
         _,seg1 = cv2.threshold(img,127,255,cv2.THRESH_BINARY)

@@ -103,7 +103,6 @@ def main():
     # bulid up model
     # start_time = time.time()
     print("begin to bulid up model...")
-    model = get_net(cfg)
     # DPP mode
     device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU) if not cfg.DEBUG \
         else select_device(logger, 'cpu')
@@ -113,9 +112,9 @@ def main():
         torch.cuda.set_device(args.local_rank)
         device = torch.device('cuda', args.local_rank)
         dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
-
+    
     model = get_net(cfg).to(device)
-    # print("finish build model")
+    print("finish build model")
 
     # define loss function (criterion) and optimizer
     criterion = get_loss(cfg, device=device)
@@ -134,7 +133,7 @@ def main():
     checkpoint_file = os.path.join(
         final_output_dir, 'checkpoint.pth'
     )
-
+    
     if rank in [-1, 0]:
         if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
@@ -147,7 +146,7 @@ def main():
             optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
-    print('rank = {}'.format(rank))
+    # print('rank = {}'.format(rank))
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
     

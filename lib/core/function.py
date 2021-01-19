@@ -37,7 +37,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     # switch to train mode
     model.train()
     start = time.time()
-    for i, (input, target,_,_) in enumerate(train_loader):
+    for i, (input, target, _, _) in enumerate(train_loader):
         data_time.update(time.time() - start)
         if not config.DEBUG:
             input = input.to(device, non_blocking=True)

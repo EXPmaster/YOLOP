@@ -129,9 +129,10 @@ class CSPDarknet(nn.Module):
 
 
 def get_net(is_train, **kwargs):
-    bb_block_cfg = CSPDarknet_s
+    # bb_block_cfg = CSPDarknet_s
     m_block_cfg = MCnet
     model = CSPDarknet(m_block_cfg, **kwargs)
+    # print('get_net')
     return model
 
 
