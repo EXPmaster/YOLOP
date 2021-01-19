@@ -139,7 +139,7 @@ def main():
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
             checkpoint = torch.load(checkpoint_file)
             begin_epoch = checkpoint['epoch']
-            best_perf = checkpoint['perf']
+            # best_perf = checkpoint['perf']
             last_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['state_dict'])
 

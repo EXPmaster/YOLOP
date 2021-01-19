@@ -113,6 +113,7 @@ class CSPDarknet(nn.Module):
             cache.append(x if block.index in self.save else None)
         m=nn.Sigmoid()
         out.append(m(x))
+        # out.append(x)
         # print(out[0][0].shape, out[0][1].shape, out[0][2].shape)
         return out
     
