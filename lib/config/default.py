@@ -11,7 +11,7 @@ _C.GPUS = (0,)
 _C.WORKERS = 0
 _C.PIN_MEMORY = False
 _C.PRINT_FREQ = 20
-_C.AUTO_RESUME = False
+_C.AUTO_RESUME = True
 _C.NEED_AUTOANCHOR = False
 _C.DEBUG = False
 
@@ -89,6 +89,8 @@ _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
+
+_C.TRAIN.FREEZE_SEG = True
 
 # testing
 _C.TEST = CN(new_allowed=True)
