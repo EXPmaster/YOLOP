@@ -3,7 +3,9 @@ import numpy as np
 import random
 import torch
 import torchvision.transforms as transforms
+from visualization import plot_img_and_mask
 from pathlib import Path
+from PIL import Image
 from torch.utils.data import Dataset
 from ..utils import letterbox, augment_hsv, random_perspective, xyxy2xywh
 
@@ -147,6 +149,7 @@ class AutoDriveDataset(Dataset):
             lr_flip = True
             if lr_flip and random.random() < 0.5:
                 img = np.fliplr(img)
+                seg_label = np.fliplr(seg_label)
                 if len(labels):
                     labels[:, 1] = 1 - labels[:, 1]
 
@@ -154,6 +157,7 @@ class AutoDriveDataset(Dataset):
             ud_flip = False
             if ud_flip and random.random() < 0.5:
                 img = np.flipud(img)
+                seg_label = np.filpud(seg_label)
                 if len(labels):
                     labels[:, 2] = 1 - labels[:, 2]
 
@@ -166,13 +170,20 @@ class AutoDriveDataset(Dataset):
         # img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
         
-        _,seg1 = cv2.threshold(img,127,255,cv2.THRESH_BINARY)
-        _,seg2 = cv2.threshold(img,127,255,cv2.THRESH_BINARY_INV)
+        _,seg1 = cv2.threshold(seg_label,1,255,cv2.THRESH_BINARY)
+        _,seg2 = cv2.threshold(seg_label,1,255,cv2.THRESH_BINARY_INV)
         seg1 = self.Tensor(seg1)
         seg2 = self.Tensor(seg2)
         seg_label = torch.stack((seg2[0],seg1[0]),0)
         target = [labels_out, seg_label]
         img = self.transform(img)
+        # if self.cfg.TRAIN.PLOT:
+        #     if idx < 10:
+        #         img_test = Image.open(data["image"])
+        #         _, seg_mask = torch.max(seg_label, 0)
+        #         seg_mask = seg_mask > 0.5
+        #         # print(seg_mask.shape)
+        #         plot_img_and_mask(img_test, seg_mask, idx)
         return img, target, data["image"], shapes
 
     def select_data(self, db):

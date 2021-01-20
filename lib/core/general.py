@@ -339,7 +339,7 @@ def color_list():
 
     return [hex2rgb(h) for h in plt.rcParams['axes.prop_cycle'].by_key()['color']]
 
-def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-recall_curve.png'):
+def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision-recall_curve.png', names=[]):
     """ Compute the average precision, given the recall and precision curves.
     Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
     # Arguments
@@ -348,7 +348,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
         pred_cls:  Predicted object classes (nparray).
         target_cls:  True object classes (nparray).
         plot:  Plot precision-recall curve at mAP@0.5
-        fname:  Plot filename
+        save_dir:  Plot save directory
     # Returns
         The average precision as computed in py-faster-rcnn.
     """
@@ -367,10 +367,10 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
     ap, p, r = np.zeros(s), np.zeros(s), np.zeros(s)
     for ci, c in enumerate(unique_classes):
         i = pred_cls == c
-        n_gt = (target_cls == c).sum()  # Number of ground truth objects
-        n_p = i.sum()  # Number of predicted objects
+        n_l = (target_cls == c).sum()  # number of labels
+        n_p = i.sum()  # number of predictions
 
-        if n_p == 0 or n_gt == 0:
+        if n_p == 0 or n_l == 0:
             continue
         else:
             # Accumulate FPs and TPs
@@ -378,7 +378,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
             tpc = tp[i].cumsum(0)
 
             # Recall
-            recall = tpc / (n_gt + 1e-16)  # recall curve
+            recall = tpc / (n_l + 1e-16)  # recall curve
             r[ci] = np.interp(-pr_score, -conf[i], recall[:, 0])  # r at pr_score, negative x, xp because xp decreases
 
             # Precision
@@ -388,24 +388,14 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
             # AP from recall-precision curve
             for j in range(tp.shape[1]):
                 ap[ci, j], mpre, mrec = compute_ap(recall[:, j], precision[:, j])
-                if j == 0:
+                if plot and (j == 0):
                     py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
 
     # Compute F1 score (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + 1e-16)
 
     if plot:
-        py = np.stack(py, axis=1)
-        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-        ax.plot(px, py, linewidth=0.5, color='grey')  # plot(recall, precision)
-        ax.plot(px, py.mean(1), linewidth=2, color='blue', label='all classes %.3f mAP@0.5' % ap[:, 0].mean())
-        ax.set_xlabel('Recall')
-        ax.set_ylabel('Precision')
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        plt.legend()
-        fig.tight_layout()
-        fig.savefig(fname, dpi=200)
+        plot_pr_curve(px, py, ap, save_dir, names)
 
     return p, r, ap, f1, unique_classes.astype('int32')
 
@@ -455,3 +445,21 @@ def output_to_target(output):
         for *box, conf, cls in o.cpu().numpy():
             targets.append([i, cls, *list(*xyxy2xywh(np.array(box)[None])), conf])
     return np.array(targets)
+
+def plot_pr_curve(px, py, ap, save_dir='.', names=()):
+    fig, ax = plt.subplots(1, 1, figsize=(9, 6), tight_layout=True)
+    py = np.stack(py, axis=1)
+
+    if 0 < len(names) < 21:  # show mAP in legend if < 10 classes
+        for i, y in enumerate(py.T):
+            ax.plot(px, y, linewidth=1, label=f'{names[i]} %.3f' % ap[i, 0])  # plot(recall, precision)
+    else:
+        ax.plot(px, py, linewidth=1, color='grey')  # plot(recall, precision)
+
+    ax.plot(px, py.mean(1), linewidth=3, color='blue', label='all classes %.3f mAP@0.5' % ap[:, 0].mean())
+    ax.set_xlabel('Recall')
+    ax.set_ylabel('Precision')
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+    fig.savefig(Path(save_dir) / 'precision_recall_curve.png', dpi=250)
