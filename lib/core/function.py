@@ -153,7 +153,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     model.eval()
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
 
-    for batch_i, (img, target,paths,shapes) in enumerate(val_loader):
+    for batch_i, (img, target, paths, shapes) in enumerate(val_loader):
         if not config.DEBUG:
             img = img.to(device, non_blocking=True)
             assign_target = []

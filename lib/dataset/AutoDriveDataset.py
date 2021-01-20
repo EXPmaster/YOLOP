@@ -160,11 +160,19 @@ class AutoDriveDataset(Dataset):
                 seg_label = np.filpud(seg_label)
                 if len(labels):
                     labels[:, 2] = 1 - labels[:, 2]
+        
+        else:
+            if len(labels):
+                # convert xyxy to xywh
+                labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])
+
+                # Normalize coordinates 0 - 1
+                labels[:, [2, 4]] /= img.shape[0]  # height
+                labels[:, [1, 3]] /= img.shape[1]  # width
 
         labels_out = torch.zeros((len(labels), 6))
         if len(labels):
             labels_out[:, 1:] = torch.from_numpy(labels)
-
         # Convert
         # img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         # img = img.transpose(2, 0, 1)
