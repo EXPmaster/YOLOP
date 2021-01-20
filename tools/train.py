@@ -103,9 +103,8 @@ def main():
     # bulid up model
     # start_time = time.time()
     print("begin to bulid up model...")
-    model = get_net(cfg)
     # DPP mode
-    device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU) if not cfg.DEBUG \
+    device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU* len(cfg.GPUS)) if not cfg.DEBUG \
         else select_device(logger, 'cpu')
 
     if args.local_rank != -1:
@@ -113,9 +112,9 @@ def main():
         torch.cuda.set_device(args.local_rank)
         device = torch.device('cuda', args.local_rank)
         dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
-
+    
     model = get_net(cfg).to(device)
-    # print("finish build model")
+    print("finish build model")
 
     # define loss function (criterion) and optimizer
     criterion = get_loss(cfg, device=device)
@@ -134,20 +133,20 @@ def main():
     checkpoint_file = os.path.join(
         final_output_dir, 'checkpoint.pth'
     )
-
+    
     if rank in [-1, 0]:
         if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
             checkpoint = torch.load(checkpoint_file)
             begin_epoch = checkpoint['epoch']
-            best_perf = checkpoint['perf']
+            # best_perf = checkpoint['perf']
             last_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['state_dict'])
 
             optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
-    print('rank = {}'.format(rank))
+    # print('rank = {}'.format(rank))
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
     
@@ -232,7 +231,7 @@ def main():
         lr_scheduler.step()
 
         # evaluate on validation set
-        if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
+        if epoch % cfg.TRAIN.VAL_FREQ == 1 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
             segment_results,detect_results, maps, times = validate(
                 cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,

@@ -1,16 +1,17 @@
 import torch
 from torch import tensor
 import torch.nn as nn
-import sys
+import sys,os
 import math
 # sys.path.append("lib/models")
 # sys.path.append("lib/utils")
-
-from ..common import SPP, Conv, Bottleneck, BottleneckCSP, Focus, Concat, Detect
+sys.path.append("/workspace/wh/projects/DaChuang")
+from lib.utils import initialize_weights
+from lib.models.common import SPP, Conv, Bottleneck, BottleneckCSP, Focus, Concat, Detect
 from torch.nn import Upsample
 from lib.utils import check_anchor_order
 
-from lib.utils import initialize_weights
+from torch.utils.tensorboard import SummaryWriter
 
 CSPDarknet_s = [
 [ -1, Focus, [3, 32, 3]],
@@ -50,7 +51,7 @@ MCnet = [
 [ -1, Conv, [256, 256, 3, 2]],
 [ [-1, 10], Concat, [1]],
 [ -1, BottleneckCSP, [512, 512, 1, False]],
-[ [17, 20, 23], Detect,  [13, [[10, 13, 16, 30, 33, 23], [30, 61, 62, 45, 59, 119], [116, 90, 156, 198, 373, 326]], [128, 256, 512]]],
+[ [17, 20, 23], Detect,  [13, [[12, 7, 20, 10, 17, 19], [34, 14, 46, 23, 76, 33], [115, 49, 179, 76, 324, 139]], [128, 256, 512]]],
 [ 17, Conv, [128, 64, 3, 1]],
 [ -1, Upsample, [None, 2, 'nearest']],
 [ [-1,2], Concat, [1]],
@@ -113,6 +114,7 @@ class CSPDarknet(nn.Module):
             cache.append(x if block.index in self.save else None)
         m=nn.Sigmoid()
         out.append(m(x))
+        # out.append(x)
         # print(out[0][0].shape, out[0][1].shape, out[0][2].shape)
         return out
     
@@ -129,9 +131,10 @@ class CSPDarknet(nn.Module):
 
 
 def get_net(is_train, **kwargs):
-    bb_block_cfg = CSPDarknet_s
+    # bb_block_cfg = CSPDarknet_s
     m_block_cfg = MCnet
     model = CSPDarknet(m_block_cfg, **kwargs)
+    # print('get_net')
     return model
 
 
@@ -139,10 +142,15 @@ if __name__ == "__main__":
     model = get_net(False)
     """for module in model.modules():
         print(module)"""
-    input_ = torch.randn((1, 3, 1280, 736))
-    pred = model(input_)
+    input_ = torch.randn((1, 3, 256, 256))
+    """pred = model(input_)
     print(pred[1].shape)    #segment
     for detect_res in pred[0]:
         print(detect_res.shape) #detect
-    print(model.training)
+    print(model.training)"""
+    writer = SummaryWriter()   
+    model.train()
+    writer.add_graph(model, input_)
+    pred = model(input_)
+
 

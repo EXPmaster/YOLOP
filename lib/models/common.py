@@ -103,7 +103,7 @@ class Concat(nn.Module):
 class Detect(nn.Module):
     stride = None  # strides computed during build
 
-    def __init__(self, nc=80, anchors=(), ch=()):  # detection layer
+    def __init__(self, nc=13, anchors=(), ch=()):  # detection layer
         super(Detect, self).__init__()
         self.nc = nc  # number of classes
         self.no = nc + 5  # number of outputs per anchor 85

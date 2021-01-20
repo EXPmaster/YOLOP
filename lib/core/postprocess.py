@@ -3,6 +3,18 @@ from lib.utils import is_parallel
 
 
 def build_targets(cfg, predictions, targets, model):
+    '''
+    predictions
+    [16, 3, 32, 32, 85]
+    [16, 3, 16, 16, 85]
+    [16, 3, 8, 8, 85]
+    torch.tensor(predictions[i].shape)[[3, 2, 3, 2]]
+    [32,32,32,32]
+    [16,16,16,16]
+    [8,8,8,8]
+    targets[3,x,7]
+    t [index, class, x, y, w, h, head_index](x,y,w,h)是对应于32X32,16X16,8X8的
+    '''
     # Build targets for compute_loss(), input targets(image,class,x,y,w,h)
     det = model.module.model[model.module.detector_index] if is_parallel(model) \
         else model.model[model.detector_index]  # Detect() module
@@ -14,18 +26,19 @@ def build_targets(cfg, predictions, targets, model):
     gain = torch.ones(7, device=targets.device)  # normalized to gridspace gain
     ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
     targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
+    
     g = 0.5  # bias
     off = torch.tensor([[0, 0],
                         [1, 0], [0, 1], [-1, 0], [0, -1],  # j,k,l,m
                         # [1, 1], [1, -1], [-1, 1], [-1, -1],  # jk,jm,lk,lm
                         ], device=targets.device).float() * g  # offsets
-
+    
     for i in range(det.nl):
-        anchors = det.anchors[i]
+        anchors = det.anchors[i] #[3,2]
         gain[2:6] = torch.tensor(predictions[i].shape)[[3, 2, 3, 2]]  # xyxy gain
-
         # Match targets to anchors
         t = targets * gain
+
         if nt:
             # Matches
             r = t[:, :, 4:6] / anchors[:, None]  # wh ratio
