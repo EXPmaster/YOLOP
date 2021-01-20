@@ -5,7 +5,7 @@ import sys,os
 import math
 # sys.path.append("lib/models")
 # sys.path.append("lib/utils")
-sys.path.append("/workspace/wh/projects/DaChuang")
+# sys.path.append("/workspace/wh/projects/DaChuang")
 from lib.utils import initialize_weights
 from lib.models.common import SPP, Conv, Bottleneck, BottleneckCSP, Focus, Concat, Detect
 from torch.nn import Upsample
