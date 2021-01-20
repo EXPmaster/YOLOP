@@ -171,6 +171,8 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             #segment evaluation
             _,predict=torch.max(seg_out, 1)
             _,gt=torch.max(target[1], 1)
+            predict = predict[:,56:200,:]
+            gt = gt[:,56:200,:]
             metric.reset()    
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()

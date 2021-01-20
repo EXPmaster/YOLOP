@@ -27,7 +27,7 @@ class BddDataset(AutoDriveDataset):
         """
         print('building database...')
         gt_db = []
-        width, height = self.cfg.MODEL.IMAGE_SIZE
+        height, width = self.shapes
         for mask in tqdm(list(self.mask_list)):
             mask_path = str(mask)
             label_path = mask_path.replace(str(self.mask_root), str(self.label_root)).replace(".png", ".json")
