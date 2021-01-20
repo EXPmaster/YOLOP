@@ -7,6 +7,7 @@ weights/
 log/
 bdd/
 subbdd/
+experiments/
 *.pth
 *.pt
 *.tar
