@@ -2,11 +2,15 @@ import time
 from lib.core.evaluate import ConfusionMatrix,SegmentationMetric
 from lib.core.general import non_max_suppression,check_img_size,scale_coords,xyxy2xywh,xywh2xyxy,box_iou,coco80_to_coco91_class,plot_images,ap_per_class,output_to_target
 from lib.utils.utils import time_synchronized
+from visualization import plot_img_and_mask
 import torch
 from threading import Thread
 import numpy as np
+from PIL import Image
+from torchvision import transforms
 from pathlib import Path
 import json
+
 
 def train(config, train_loader, model, criterion, optimizer, epoch,
           writer_dict, logger, device, rank=-1):
@@ -37,7 +41,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     # switch to train mode
     model.train()
     start = time.time()
-    for i, (input, target,_,_) in enumerate(train_loader):
+    for i, (input, target, _, _) in enumerate(train_loader):
         data_time.update(time.time() - start)
         if not config.DEBUG:
             input = input.to(device, non_blocking=True)
@@ -104,12 +108,20 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     save_dir = output_dir
     _, imgsz = [check_img_size(x, s=max_stride) for x in config.MODEL.IMAGE_SIZE] #imgsz is multiple of max_stride
     batch_size = config.TRAIN.BATCH_SIZE_PER_GPU*len(config.GPUS)
+    test_batch_size = config.TEST.BATCH_SIZE_PER_GPU*len(config.GPUS)
     training = True
     is_coco = False #is coco dataset
     save_conf=False # save auto-label confidences
     verbose=False
     save_hybrid=False
     log_imgs,wandb = min(16,100), None
+    tf = transforms.Compose(
+            [
+                transforms.ToPILImage(),
+                transforms.Resize((720, 1280)),
+                transforms.ToTensor()
+            ]
+        )
 
     nc = 13
     iouv = torch.linspace(0.5,0.95,10).to(device)     #iou vector for mAP@0.5:0.95
@@ -159,6 +171,8 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             #segment evaluation
             _,predict=torch.max(seg_out, 1)
             _,gt=torch.max(target[1], 1)
+            predict = predict[:,56:200,:]
+            gt = gt[:,56:200,:]
             metric.reset()    
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
@@ -171,7 +185,18 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             mIoU_seg.update(mIoU,img.size(0))
             FWIoU_seg.update(FWIoU,img.size(0))
 
-
+            if config.TEST.PLOTS:
+                if batch_i == 0:
+                    for i in range(test_batch_size):
+                        img_path = Path(paths[i])
+                        img_test = Image.open(img_path)
+                        seg_mask = predict[i][56:200,:].float()
+                        seg_mask = tf(seg_mask.cpu())
+                        seg_mask = seg_mask.squeeze().cpu().numpy()
+                        seg_mask = seg_mask > 0.5
+                        # print(seg_mask.shape)
+                        plot_img_and_mask(img_test, seg_mask, i)
+        
             if training:
                 total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
                 losses.update(total_loss.item(), img.size(0))
@@ -275,6 +300,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             #Thread(target=plot_images, args=(img, target[0], paths, f, names), daemon=True).start()
             f = save_dir +'/'+ f'test_batch{batch_i}_pred.jpg'  # predictions
             #Thread(target=plot_images, args=(img, output_to_target(output), paths, f, names), daemon=True).start()
+
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
 
