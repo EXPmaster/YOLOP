@@ -123,7 +123,10 @@ class AutoDriveDataset(Dataset):
             labels[:, 3] = ratio[0] * w0 * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
             labels[:, 4] = ratio[1] * h0 * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
 <<<<<<< HEAD
+<<<<<<< HEAD
 
+=======
+>>>>>>> 739b77908a4e7179a41cb55b93abdd857de16ab5
 =======
 >>>>>>> 739b77908a4e7179a41cb55b93abdd857de16ab5
             
