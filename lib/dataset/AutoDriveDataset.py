@@ -105,7 +105,7 @@ class AutoDriveDataset(Dataset):
             seg_label = cv2.resize(seg_label, (int(w0 * r), int(h0 * r)), interpolation=interp)
         h, w = img.shape[:2]
         
-        (img, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=True)
+        (img, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=self.is_train)
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
         ratio = (w / w0, h / h0)
         # print(resized_shape)
