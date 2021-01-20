@@ -131,7 +131,7 @@ def main():
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
 
     checkpoint_file = os.path.join(
-        final_output_dir, 'checkpoint.pth'
+        final_output_dir, '/workspace/wh/projects/DaChuang/weights/BddDataset/epoch-50.pth'
     )
     
     if rank in [-1, 0]:
@@ -233,7 +233,7 @@ def main():
         # evaluate on validation set
         if epoch % cfg.TRAIN.VAL_FREQ == 1 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
             segment_results,detect_results, maps, times = validate(
-                cfg, valid_loader, valid_dataset, model, criterion,
+                epoch,cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank
             )

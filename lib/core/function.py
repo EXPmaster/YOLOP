@@ -2,7 +2,7 @@ import time
 from lib.core.evaluate import ConfusionMatrix,SegmentationMetric
 from lib.core.general import non_max_suppression,check_img_size,scale_coords,xyxy2xywh,xywh2xyxy,box_iou,coco80_to_coco91_class,plot_images,ap_per_class,output_to_target
 from lib.utils.utils import time_synchronized
-from visualization import plot_img_and_mask
+from visualization import plot_img_and_mask,plot_one_box
 import torch
 from threading import Thread
 import numpy as np
@@ -10,6 +10,9 @@ from PIL import Image
 from torchvision import transforms
 from pathlib import Path
 import json
+import random
+import cv2
+import os
 
 
 def train(config, train_loader, model, criterion, optimizer, epoch,
@@ -87,7 +90,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
 
 
 
-def validate(config, val_loader, val_dataset, model, criterion, output_dir,
+def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir,
              tb_log_dir, writer_dict=None, logger=None, device='cpu', rank=-1):
     """
     validata
@@ -105,7 +108,9 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     # setting
     max_stride = 32
     weights = None
-    save_dir = output_dir
+    print(output_dir)
+    save_dir = os.path.abspath(os.path.dirname(output_dir)+os.path.sep+"..")+"/experiments"
+    print(save_dir)
     _, imgsz = [check_img_size(x, s=max_stride) for x in config.MODEL.IMAGE_SIZE] #imgsz is multiple of max_stride
     batch_size = config.TRAIN.BATCH_SIZE_PER_GPU*len(config.GPUS)
     test_batch_size = config.TEST.BATCH_SIZE_PER_GPU*len(config.GPUS)
@@ -138,6 +143,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     metric = SegmentationMetric(2) #segment confusion matrix
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
+    colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
     coco91class = coco80_to_coco91_class()
     
     s = ('%20s' + '%12s' * 6) % ('Class', 'Images', 'Targets', 'P', 'R', 'mAP@.5', 'mAP@.5:.95')
@@ -185,17 +191,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             mIoU_seg.update(mIoU,img.size(0))
             FWIoU_seg.update(FWIoU,img.size(0))
 
-            if config.TEST.PLOTS:
-                if batch_i == 0:
-                    for i in range(test_batch_size):
-                        img_path = Path(paths[i])
-                        img_test = Image.open(img_path)
-                        seg_mask = predict[i][56:200,:].float()
-                        seg_mask = tf(seg_mask.cpu())
-                        seg_mask = seg_mask.squeeze().cpu().numpy()
-                        seg_mask = seg_mask > 0.5
-                        # print(seg_mask.shape)
-                        plot_img_and_mask(img_test, seg_mask, i)
+
         
             if training:
                 total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
@@ -209,6 +205,40 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             #output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6)
             #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
             t_nms += time_synchronized() - t
+
+            #可视化
+            if config.TEST.PLOTS:
+                if batch_i == 0:
+                    for i in range(test_batch_size):
+                        img_path = Path(paths[i])
+                        img_test = Image.open(img_path)
+                        seg_mask = predict[i][56:200,:].float()
+                        seg_mask = tf(seg_mask.cpu())
+                        seg_mask = seg_mask.squeeze().cpu().numpy()
+                        seg_mask = seg_mask > 0.5
+                        # print(seg_mask.shape)
+                        plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
+
+                        img_det = cv2.imread(paths[i])
+                        img_gt = img_det.copy()
+                        det = output[i]
+                        if len(det):
+                            det[:,:4] = scale_coords(img[i].shape[1:],det[:,:4],img_det.shape).round()
+                        for *xyxy,conf,cls in reversed(output[i]):
+                            label_det_pred = f'{names[int(cls)]} {conf:.2f}'
+                            plot_one_box(xyxy, img_det , label=label_det_pred, color=colors[int(cls)], line_thickness=3)
+                        cv2.imwrite(save_dir+"/batch_{}_{}_det_pred.png".format(epoch,i),img_det)
+
+                        labels = target[0][target[0][:, 0] == i, 1:]
+                        print(labels)
+                        labels[:,1:5]=xywh2xyxy(labels[:,1:5])
+                        if len(labels):
+                            labels[:,1:5]=scale_coords(img[i].shape[1:],labels[:,1:5],img_gt.shape).round()
+                        for cls,x1,y1,x2,y2 in labels:
+                            label_det_gt = f'{names[int(cls)]}'
+                            xyxy = (x1,y1,x2,y2)
+                            plot_one_box(xyxy, img_gt , label=label_det_gt, color=colors[int(cls)], line_thickness=3)
+                        cv2.imwrite(save_dir+"/batch_{}_{}_det_gt.png".format(epoch,i),img_gt)
 
         # Statistics per image
         for si, pred in enumerate(output):
