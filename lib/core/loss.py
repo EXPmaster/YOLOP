@@ -120,9 +120,8 @@ class MultiHeadLoss(nn.Module):
         lseg *= cfg.LOSS.SEG_GAIN * self.lambdas[3]
 
         # bs = tobj.shape[0]  # batch size
-
-        lseg = 0 #only train detect model
-
+        if cfg.TRAIN.FREEZE_SEG:
+            lseg = 0 * lseg
         loss = lbox + lobj + lcls + lseg
         # return loss * bs, torch.cat((lbox, lobj, lcls, loss)).detach()
         return loss, (lbox.item(), lobj.item(), lcls.item(), lseg.item(), loss.item())

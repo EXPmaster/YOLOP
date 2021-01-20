@@ -95,8 +95,8 @@ if __name__ == "__main__":
     #for module in model.modules():
     #    print(module)
 
-    input_ = torch.randn((24, 3, 144, 256))
-    gt_image = torch.randn((4, 2, 144, 256))
+    """input_ = torch.zeros((24, 3, 256, 256))
+    gt_image = torch.rand((24, 2, 256, 256))
     model.eval()
     #print(model.training)
     pred = model(input_)
@@ -104,13 +104,17 @@ if __name__ == "__main__":
     inf_out , train_out = pred[0]
     _,predict=torch.max(pred[1], 1)
     _,gt=torch.max(gt_image, 1)
-    metric = SegmentationMetric(2)
+    print(predict.shape)
+    print(gt.shape)"""
+    predict = np.array([0, 0, 1, 1, 2, 2])
+    gt = np.array([1, 0, 1, 2, 2, 0])
+    metric = SegmentationMetric(3)
     metric.addBatch(predict, gt)
     acc = metric.pixelAccuracy()
     mIoU = metric.meanIntersectionOverUnion()
     FWIoU = metric.Frequency_Weighted_Intersection_over_Union()
     print(acc, mIoU,FWIoU)
-    print(predict.shape)
+    """print(predict.shape)
     #print(inf_out.shape)    #inf:[1, 57960, 85]
     #print(type(train_out))  #train: list/[[1, 3, 160, 92, 85],[1, 3, 80, 46, 85],[1, 3, 40, 23, 85]]
     mean=0
@@ -125,16 +129,16 @@ if __name__ == "__main__":
         FWIoU = metric.Frequency_Weighted_Intersection_over_Union()
         mean+=acc
         print(acc, classAcc,mIoU,FWIoU)
-    print(mean/4)
+    print(mean/24)
 
-    """for t in train_out:
-        print(t.shape)"""
+    for t in train_out:
+        print(t.shape)
     
 
-    """output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6)
-    print(output)"""
+    output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6)
+    print(output)
 
-"""    
+  
     pre_image=
     
     metric = SegmentationMetric(4)
