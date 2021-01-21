@@ -179,6 +179,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             _,gt=torch.max(target[1], 1)
             predict = predict[:,56:200,:]
             gt = gt[:,56:200,:]
+            print(predict.shape)
             metric.reset()    
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
@@ -213,6 +214,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         img_path = Path(paths[i])
                         img_test = Image.open(img_path)
                         seg_mask = predict[i][56:200,:].float()
+
                         seg_mask = tf(seg_mask.cpu())
                         seg_mask = seg_mask.squeeze().cpu().numpy()
                         seg_mask = seg_mask > 0.5
@@ -230,7 +232,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         cv2.imwrite(save_dir+"/batch_{}_{}_det_pred.png".format(epoch,i),img_det)
 
                         labels = target[0][target[0][:, 0] == i, 1:]
-                        print(labels)
+                         
                         labels[:,1:5]=xywh2xyxy(labels[:,1:5])
                         if len(labels):
                             labels[:,1:5]=scale_coords(img[i].shape[1:],labels[:,1:5],img_gt.shape).round()

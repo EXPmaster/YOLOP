@@ -131,7 +131,7 @@ def main():
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
 
     checkpoint_file = os.path.join(
-        final_output_dir, 'checkpoint.pth'
+        final_output_dir, '/home/zwt/wd/DaChuang/weights/BddDataset/epoch-75.pth'
     )
     
     if rank in [-1, 0]:
