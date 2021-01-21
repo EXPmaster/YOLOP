@@ -8,6 +8,7 @@ log/
 bdd/
 subbdd/
 experiments/
+runs/
 *.pth
 *.pt
 *.tar

@@ -46,7 +46,6 @@ class AutoDriveDataset(Dataset):
 
         self.db = []
 
-        self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
 
         self.scale_factor = cfg.DATASET.SCALE_FACTOR

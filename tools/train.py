@@ -1,5 +1,6 @@
 import argparse
 import os, sys
+import math
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
@@ -30,8 +31,7 @@ from lib.utils import is_parallel
 from lib.utils.utils import get_optimizer
 from lib.utils.utils import save_checkpoint
 from lib.utils.utils import create_logger, select_device
-from lib.utils.autoanchor import check_anchors
-
+from lib.utils import run_anchor
 
 
 def parse_args():
@@ -50,7 +50,7 @@ def parse_args():
     parser.add_argument('--logDir',
                         help='log directory',
                         type=str,
-                        default='log/')
+                        default='runs/')
     parser.add_argument('--dataDir',
                         help='data directory',
                         type=str,
@@ -82,7 +82,7 @@ def main():
     # set the logger, tb_log_dir means tensorboard logdir
 
     logger, final_output_dir, tb_log_dir = create_logger(
-        cfg, args.logDir, 'train', rank=rank)
+        cfg, cfg.LOG_DIR, 'train', rank=rank)
 
     if rank in [-1, 0]:
         logger.info(pprint.pformat(args))
@@ -125,17 +125,19 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
-        last_epoch=last_epoch
-    )
+    # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
+    #     last_epoch=last_epoch
+    # )
+    lf = lambda x: ((1 + math.cos(x * math.pi / cfg.TRAIN.END_EPOCH)) / 2) * \
+                   (1 - cfg.TRAIN.LRF) + cfg.TRAIN.LRF  # cosine
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
 
-    checkpoint_file = os.path.join(
-        final_output_dir, 'checkpoint.pth'
-    )
-    
     if rank in [-1, 0]:
+        checkpoint_file = os.path.join(
+            os.path.join(cfg.LOG_DIR, cfg.DATASET.DATASET), 'checkpoint.pth'
+        )
         if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
             checkpoint = torch.load(checkpoint_file)
@@ -207,10 +209,10 @@ def main():
     )
     print('load data finished')
     
-    # if rank in [-1, 0]:
-    #     if cfg.NEED_AUTOANCHOR:
-    #         print("begin check anchors")
-    #         check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
+    if rank in [-1, 0]:
+        if cfg.NEED_AUTOANCHOR:
+            print("begin check anchors")
+            run_anchor(train_dataset, model=model, thr=cfg.TRAIN.ANCHOR_THRESHOLD, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
     # training
     scaler = amp.GradScaler(enabled=device.type != 'cpu')
@@ -226,8 +228,8 @@ def main():
 
         # evaluate on validation set
         if epoch % cfg.TRAIN.VAL_FREQ == 1 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
-            segment_results,detect_results, maps, times = validate(
-                epoch,cfg, valid_loader, valid_dataset, model, criterion,
+            segment_results, detect_results, maps, times = validate(
+                epoch, cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank
             )
@@ -259,6 +261,16 @@ def main():
                 optimizer=optimizer,
                 output_dir=final_output_dir,
                 filename=f'epoch-{epoch}.pth'
+            )
+            save_checkpoint(
+                epoch=epoch,
+                name=cfg.MODEL.NAME,
+                model=model,
+                # 'best_state_dict': model.module.state_dict(),
+                # 'perf': perf_indicator,
+                optimizer=optimizer,
+                output_dir=os.path.join(cfg.LOG_DIR, cfg.DATASET.DATASET),
+                filename='checkpoint.pth'
             )
 
     # save final model

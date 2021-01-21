@@ -5,14 +5,13 @@ from yacs.config import CfgNode as CN
 
 _C = CN()
 
-_C.OUTPUT_DIR = 'weights/'
-_C.LOG_DIR = 'log/'
-_C.GPUS = (0,)
-_C.WORKERS = 0
-_C.PIN_MEMORY = False
+_C.LOG_DIR = 'runs/'
+_C.GPUS = (0, 1)
+_C.WORKERS = 4
+_C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = True
-_C.NEED_AUTOANCHOR = False
+_C.NEED_AUTOANCHOR = True
 _C.DEBUG = False
 
 # Cudnn related params
@@ -26,7 +25,7 @@ _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
 _C.MODEL.PRETRAINED = ''
-_C.MODEL.IMAGE_SIZE = [640, 640]  # width * height, ex: 192 * 256
+_C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
@@ -70,13 +69,12 @@ _C.DATASET.HSV_V = 0.4  # image HSV-Value augmentation (fraction)
 # train
 _C.TRAIN = CN(new_allowed=True)
 
-_C.TRAIN.LR_FACTOR = 0.1
-_C.TRAIN.LR_STEP = [90, 110]
-_C.TRAIN.LR = 0.001
+_C.TRAIN.LR0 = 0.001  # initial learning rate (SGD=1E-2, Adam=1E-3)
+_C.TRAIN.LRF = 0.2  # final OneCycleLR learning rate (lr0 * lrf)
 
 _C.TRAIN.OPTIMIZER = 'adam'
 _C.TRAIN.MOMENTUM = 0.9
-_C.TRAIN.WD = 0.0001
+_C.TRAIN.WD = 0.0005
 _C.TRAIN.NESTEROV = False
 _C.TRAIN.GAMMA1 = 0.99
 _C.TRAIN.GAMMA2 = 0.0
@@ -103,6 +101,7 @@ _C.TEST.SAVE_TXT = False
 _C.TEST.PLOTS = True
 _C.TEST.NMS_CONF_THRES = 0.001
 _C.TEST.NMS_IOU_THRES = 0.6
+
 
 def update_config(cfg, args):
     cfg.defrost()
