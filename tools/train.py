@@ -1,5 +1,6 @@
 import argparse
 import os, sys
+import math
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
@@ -8,6 +9,7 @@ import time
 import torch
 import torch.nn.parallel
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.cuda import amp
 import torch.distributed as dist
 import torch.backends.cudnn as cudnn
 import torch.optim
@@ -29,8 +31,7 @@ from lib.utils import is_parallel
 from lib.utils.utils import get_optimizer
 from lib.utils.utils import save_checkpoint
 from lib.utils.utils import create_logger, select_device
-from lib.utils.autoanchor import check_anchors
-
+from lib.utils import run_anchor
 
 
 def parse_args():
@@ -49,7 +50,7 @@ def parse_args():
     parser.add_argument('--logDir',
                         help='log directory',
                         type=str,
-                        default='log/')
+                        default='runs/')
     parser.add_argument('--dataDir',
                         help='data directory',
                         type=str,
@@ -81,7 +82,7 @@ def main():
     # set the logger, tb_log_dir means tensorboard logdir
 
     logger, final_output_dir, tb_log_dir = create_logger(
-        cfg, args.logDir, 'train', rank=rank)
+        cfg, cfg.LOG_DIR, 'train', rank=rank)
 
     if rank in [-1, 0]:
         logger.info(pprint.pformat(args))
@@ -124,17 +125,19 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
-        last_epoch=last_epoch
-    )
+    # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
+    #     last_epoch=last_epoch
+    # )
+    lf = lambda x: ((1 + math.cos(x * math.pi / cfg.TRAIN.END_EPOCH)) / 2) * \
+                   (1 - cfg.TRAIN.LRF) + cfg.TRAIN.LRF  # cosine
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
 
-    checkpoint_file = os.path.join(
-        final_output_dir, 'checkpoint.pth'
-    )
-    
     if rank in [-1, 0]:
+        checkpoint_file = os.path.join(
+            os.path.join(cfg.LOG_DIR, cfg.DATASET.DATASET), 'checkpoint.pth'
+        )
         if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
             checkpoint = torch.load(checkpoint_file)
@@ -160,14 +163,6 @@ def main():
     print('bulid model finished')
 
     print("begin to load data")
-    # if args.local_rank != -1:
-    #     assert torch.cuda.device_count() > opt.local_rank
-    #     torch.cuda.set_device(opt.local_rank)
-    #     device = torch.device('cuda', opt.local_rank)
-    #     dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
-    #     assert opt.batch_size % opt.world_size == 0, '--batch-size must be multiple of CUDA device count'
-    #     opt.batch_size = opt.total_batch_size // opt.world_size
-
     # Data loading
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
@@ -217,15 +212,16 @@ def main():
     if rank in [-1, 0]:
         if cfg.NEED_AUTOANCHOR:
             print("begin check anchors")
-            check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
+            run_anchor(train_dataset, model=model, thr=cfg.TRAIN.ANCHOR_THRESHOLD, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
     # training
+    scaler = amp.GradScaler(enabled=device.type != 'cpu')
     print('=> start training...')
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):
         if rank != -1:
             train_loader.sampler.set_epoch(epoch)
         # train for one epoch
-        train(cfg, train_loader, model, criterion, optimizer,
+        train(cfg, train_loader, model, criterion, optimizer, scaler,
               epoch, writer_dict, logger, device, rank)
         
         lr_scheduler.step()
@@ -266,6 +262,16 @@ def main():
                 optimizer=optimizer,
                 output_dir=final_output_dir,
                 filename=f'epoch-{epoch}.pth'
+            )
+            save_checkpoint(
+                epoch=epoch,
+                name=cfg.MODEL.NAME,
+                model=model,
+                # 'best_state_dict': model.module.state_dict(),
+                # 'perf': perf_indicator,
+                optimizer=optimizer,
+                output_dir=os.path.join(cfg.LOG_DIR, cfg.DATASET.DATASET),
+                filename='checkpoint.pth'
             )
 
     # save final model

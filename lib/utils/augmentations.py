@@ -151,9 +151,11 @@ def cutout(combination, labels):
         ymin = max(0, random.randint(0, h) - mask_h // 2)
         xmax = min(w, xmin + mask_w)
         ymax = min(h, ymin + mask_h)
+        # print('xmin:{},ymin:{},xmax:{},ymax:{}'.format(xmin,ymin,xmax,ymax))
 
         # apply random color mask
         image[ymin:ymax, xmin:xmax] = [random.randint(64, 191) for _ in range(3)]
+        gray[ymin:ymax, xmin:xmax] = -1
 
         # return unobscured labels
         if len(labels) and s > 0.03:
@@ -161,7 +163,7 @@ def cutout(combination, labels):
             ioa = bbox_ioa(box, labels[:, 1:5])  # intersection over area
             labels = labels[ioa < 0.60]  # remove >60% obscured labels
 
-    return labels
+    return image, gray, labels
 
 
 def letterbox(combination, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True):

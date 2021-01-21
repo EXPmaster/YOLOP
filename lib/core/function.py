@@ -13,9 +13,10 @@ import json
 import random
 import cv2
 import os
+from torch.cuda import amp
 
 
-def train(config, train_loader, model, criterion, optimizer, epoch,
+def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
           writer_dict, logger, device, rank=-1):
     """
     train for one epoch
@@ -40,7 +41,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     data_time = AverageMeter()
     losses = AverageMeter()
 
-
     # switch to train mode
     model.train()
     start = time.time()
@@ -52,13 +52,15 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             for tgt in target:
                 assign_target.append(tgt.to(device))
             target = assign_target
-        outputs = model(input)
-        total_loss, head_losses = criterion(outputs, target, model)
+        with amp.autocast(enabled=device.type != 'cpu'):
+            outputs = model(input)
+            total_loss, head_losses = criterion(outputs, target, model)
 
         # compute gradient and do update step
         optimizer.zero_grad()
-        total_loss.backward()
-        optimizer.step()
+        scaler.scale(total_loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         if rank in [-1, 0]:
             # measure accuracy and record loss
@@ -108,10 +110,13 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # setting
     max_stride = 32
     weights = None
-    save_dir = os.path.abspath(os.path.dirname(output_dir)+os.path.sep+"..")+"/experiments"
+    save_dir = output_dir + os.path.sep + 'visualization'
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    # print(save_dir)
     _, imgsz = [check_img_size(x, s=max_stride) for x in config.MODEL.IMAGE_SIZE] #imgsz is multiple of max_stride
-    batch_size = config.TRAIN.BATCH_SIZE_PER_GPU*len(config.GPUS)
-    test_batch_size = config.TEST.BATCH_SIZE_PER_GPU*len(config.GPUS)
+    batch_size = config.TRAIN.BATCH_SIZE_PER_GPU * len(config.GPUS)
+    test_batch_size = config.TEST.BATCH_SIZE_PER_GPU * len(config.GPUS)
     training = True
     is_coco = False #is coco dataset
     save_conf=False # save auto-label confidences
@@ -176,8 +181,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #segment evaluation
             _,predict=torch.max(seg_out, 1)
             _,gt=torch.max(target[1], 1)
-            # predict = predict[:,56:200,:]
-            # gt = gt[:,56:200,:]
+            predict = predict[:,56:200,:]
+            gt = gt[:,56:200,:]
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
             meanAcc = metric.meanPixelAccuracy()
@@ -210,7 +215,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                     for i in range(test_batch_size):
                         img_path = Path(paths[i])
                         img_test = Image.open(img_path)
-                        seg_mask = predict[i][56:200,:].float()
+                        seg_mask = predict[i].float()
                         seg_mask = tf(seg_mask.cpu())
                         seg_mask = seg_mask.squeeze().cpu().numpy()
                         seg_mask = seg_mask > 0.5

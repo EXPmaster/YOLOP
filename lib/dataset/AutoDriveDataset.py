@@ -7,7 +7,7 @@ from visualization import plot_img_and_mask
 from pathlib import Path
 from PIL import Image
 from torch.utils.data import Dataset
-from ..utils import letterbox, augment_hsv, random_perspective, xyxy2xywh
+from ..utils import letterbox, augment_hsv, random_perspective, xyxy2xywh, cutout
 
 
 class AutoDriveDataset(Dataset):
@@ -46,7 +46,6 @@ class AutoDriveDataset(Dataset):
 
         self.db = []
 
-        self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
 
         self.scale_factor = cfg.DATASET.SCALE_FACTOR
@@ -135,6 +134,7 @@ class AutoDriveDataset(Dataset):
             )
             #print(labels.shape)
             augment_hsv(img, hgain=self.cfg.DATASET.HSV_H, sgain=self.cfg.DATASET.HSV_S, vgain=self.cfg.DATASET.HSV_V)
+            # img, seg_label, labels = cutout(combination=combination, labels=labels)
 
             if len(labels):
                 # convert xyxy to xywh
@@ -178,8 +178,11 @@ class AutoDriveDataset(Dataset):
         # img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
         
+        # cutout_mask = seg_label < 0
         _,seg1 = cv2.threshold(seg_label,1,255,cv2.THRESH_BINARY)
         _,seg2 = cv2.threshold(seg_label,1,255,cv2.THRESH_BINARY_INV)
+        # seg1[cutout_mask] = 0
+        # seg2[cutout_mask] = 0
         seg1 = self.Tensor(seg1)
         seg2 = self.Tensor(seg2)
         seg_label = torch.stack((seg2[0],seg1[0]),0)
@@ -191,7 +194,7 @@ class AutoDriveDataset(Dataset):
         #         _, seg_mask = torch.max(seg_label, 0)
         #         seg_mask = seg_mask > 0.5
         #         # print(seg_mask.shape)
-        #         plot_img_and_mask(img_test, seg_mask, idx)
+        #         plot_img_and_mask(img_test, seg_mask, idx, )
         return img, target, data["image"], shapes
 
     def select_data(self, db):
