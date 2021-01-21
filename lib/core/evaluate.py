@@ -181,6 +181,11 @@ class ConfusionMatrix:
             print(' '.join(map(str, self.matrix[i])))
 
 class SegmentationMetric(object):
+    '''
+    imgLabel [batch_size, height(144), width(256)]
+    confusionMatrix [[0(TN),1(FP)],
+                     [2(FN),3(TP)]]
+    '''
     def __init__(self, numClass):
         self.numClass = numClass
         self.confusionMatrix = np.zeros((self.numClass,)*2)
@@ -194,7 +199,7 @@ class SegmentationMetric(object):
     def classPixelAccuracy(self):
         # return each category pixel accuracy(A more accurate way to call it precision)
         # acc = (TP) / TP + FP
-        classAcc = np.diag(self.confusionMatrix) / self.confusionMatrix.sum(axis=1)
+        classAcc = np.diag(self.confusionMatrix) / self.confusionMatrix.sum(axis=0)
         return classAcc
 
     def meanPixelAccuracy(self):
@@ -221,7 +226,7 @@ class SegmentationMetric(object):
 
     def Frequency_Weighted_Intersection_over_Union(self):
         # FWIOU =     [(TP+FN)/(TP+FP+TN+FN)] *[TP / (TP + FP + FN)]
-        freq = np.sum(self.confusionMatrix, axis=1) / np.sum(self.confusionMatrix)
+        freq = np.sum(self.confusionMatrix, axis=1)[1] / np.sum(self.confusionMatrix)
         iu = np.diag(self.confusionMatrix) / (
                 np.sum(self.confusionMatrix, axis=1) + np.sum(self.confusionMatrix, axis=0) -
                 np.diag(self.confusionMatrix))

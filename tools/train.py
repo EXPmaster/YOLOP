@@ -231,7 +231,8 @@ def main():
         lr_scheduler.step()
 
         # evaluate on validation set
-        if epoch % cfg.TRAIN.VAL_FREQ == 1 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
+        if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
+            # print('validate')
             segment_results,detect_results, maps, times = validate(
                 epoch,cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,

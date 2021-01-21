@@ -109,7 +109,7 @@ class AutoDriveDataset(Dataset):
         
         (img, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=self.is_train)
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
-        ratio = (w / w0, h / h0)
+        # ratio = (w / w0, h / h0)
         # print(resized_shape)
         
         det_label = data["label"]
@@ -118,17 +118,10 @@ class AutoDriveDataset(Dataset):
         if det_label.size > 0:
             # Normalized xywh to pixel xyxy format
             labels = det_label.copy()
-            labels[:, 1] = ratio[0] * w0 * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
-            labels[:, 2] = ratio[1] * h0 * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
-            labels[:, 3] = ratio[0] * w0 * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
-            labels[:, 4] = ratio[1] * h0 * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-=======
->>>>>>> 739b77908a4e7179a41cb55b93abdd857de16ab5
-=======
->>>>>>> 739b77908a4e7179a41cb55b93abdd857de16ab5
+            labels[:, 1] = ratio[0] * w * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
+            labels[:, 2] = ratio[1] * h * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
+            labels[:, 3] = ratio[0] * w * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
+            labels[:, 4] = ratio[1] * h * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
             
         if self.is_train:
             combination = (img, seg_label)

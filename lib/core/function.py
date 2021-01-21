@@ -108,9 +108,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # setting
     max_stride = 32
     weights = None
-    print(output_dir)
     save_dir = os.path.abspath(os.path.dirname(output_dir)+os.path.sep+"..")+"/experiments"
-    print(save_dir)
     _, imgsz = [check_img_size(x, s=max_stride) for x in config.MODEL.IMAGE_SIZE] #imgsz is multiple of max_stride
     batch_size = config.TRAIN.BATCH_SIZE_PER_GPU*len(config.GPUS)
     test_batch_size = config.TEST.BATCH_SIZE_PER_GPU*len(config.GPUS)
@@ -141,6 +139,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     seen =  0 
     confusion_matrix = ConfusionMatrix(nc=model.nc) #detector confusion matrix
     metric = SegmentationMetric(2) #segment confusion matrix
+    metric.reset()    
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
@@ -151,7 +150,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     
     losses = AverageMeter()
     acc_seg = AverageMeter()
-    classAcc_seg = AverageMeter()
+    meanAcc_seg = AverageMeter()
     mIoU_seg = AverageMeter()
     FWIoU_seg = AverageMeter()
 
@@ -177,17 +176,16 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #segment evaluation
             _,predict=torch.max(seg_out, 1)
             _,gt=torch.max(target[1], 1)
-            predict = predict[:,56:200,:]
-            gt = gt[:,56:200,:]
-            metric.reset()    
+            # predict = predict[:,56:200,:]
+            # gt = gt[:,56:200,:]
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
-            classAcc = metric.classPixelAccuracy()
+            meanAcc = metric.meanPixelAccuracy()
             mIoU = metric.meanIntersectionOverUnion()
             FWIoU = metric.Frequency_Weighted_Intersection_over_Union()
 
             acc_seg.update(acc,img.size(0))
-            classAcc_seg.update(classAcc,img.size(0))
+            meanAcc_seg.update(meanAcc,img.size(0))
             mIoU_seg.update(mIoU,img.size(0))
             FWIoU_seg.update(FWIoU,img.size(0))
 
@@ -230,7 +228,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         cv2.imwrite(save_dir+"/batch_{}_{}_det_pred.png".format(epoch,i),img_det)
 
                         labels = target[0][target[0][:, 0] == i, 1:]
-                        print(labels)
+                        # print(labels)
                         labels[:,1:5]=xywh2xyxy(labels[:,1:5])
                         if len(labels):
                             labels[:,1:5]=scale_coords(img[i].shape[1:],labels[:,1:5],img_gt.shape).round()
@@ -397,7 +395,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     for i, c in enumerate(ap_class):
         maps[c] = ap[i]
 
-    segment_result = (acc_seg.avg,classAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
+    segment_result = (acc_seg.avg,meanAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
 
     #print segmet_result
     return segment_result,(mp, mr, map50, map, losses.avg), maps, t
