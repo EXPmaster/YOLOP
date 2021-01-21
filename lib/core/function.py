@@ -13,9 +13,10 @@ import json
 import random
 import cv2
 import os
+from torch.cuda import amp
 
 
-def train(config, train_loader, model, criterion, optimizer, epoch,
+def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
           writer_dict, logger, device, rank=-1):
     """
     train for one epoch
@@ -40,7 +41,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     data_time = AverageMeter()
     losses = AverageMeter()
 
-
     # switch to train mode
     model.train()
     start = time.time()
@@ -52,13 +52,15 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             for tgt in target:
                 assign_target.append(tgt.to(device))
             target = assign_target
-        outputs = model(input)
-        total_loss, head_losses = criterion(outputs, target, model)
+        with amp.autocast(enabled=device.type != 'cpu'):
+            outputs = model(input)
+            total_loss, head_losses = criterion(outputs, target, model)
 
         # compute gradient and do update step
         optimizer.zero_grad()
-        total_loss.backward()
-        optimizer.step()
+        scaler.scale(total_loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         if rank in [-1, 0]:
             # measure accuracy and record loss

@@ -8,6 +8,7 @@ import time
 import torch
 import torch.nn.parallel
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.cuda import amp
 import torch.distributed as dist
 import torch.backends.cudnn as cudnn
 import torch.optim
@@ -160,14 +161,6 @@ def main():
     print('bulid model finished')
 
     print("begin to load data")
-    # if args.local_rank != -1:
-    #     assert torch.cuda.device_count() > opt.local_rank
-    #     torch.cuda.set_device(opt.local_rank)
-    #     device = torch.device('cuda', opt.local_rank)
-    #     dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
-    #     assert opt.batch_size % opt.world_size == 0, '--batch-size must be multiple of CUDA device count'
-    #     opt.batch_size = opt.total_batch_size // opt.world_size
-
     # Data loading
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
@@ -214,18 +207,19 @@ def main():
     )
     print('load data finished')
     
-    if rank in [-1, 0]:
-        if cfg.NEED_AUTOANCHOR:
-            print("begin check anchors")
-            check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
+    # if rank in [-1, 0]:
+    #     if cfg.NEED_AUTOANCHOR:
+    #         print("begin check anchors")
+    #         check_anchors(train_dataset, model=model, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
     # training
+    scaler = amp.GradScaler(enabled=device.type != 'cpu')
     print('=> start training...')
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):
         if rank != -1:
             train_loader.sampler.set_epoch(epoch)
         # train for one epoch
-        train(cfg, train_loader, model, criterion, optimizer,
+        train(cfg, train_loader, model, criterion, optimizer, scaler,
               epoch, writer_dict, logger, device, rank)
         
         lr_scheduler.step()
