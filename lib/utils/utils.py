@@ -11,37 +11,24 @@ import numpy as np
 
 
 def create_logger(cfg, cfg_path, phase='train', rank=-1):
-    root_output_dir = Path(cfg.OUTPUT_DIR)
-    root_log_dir = Path(cfg.LOG_DIR)
-    # set up outputdir
-    if not root_output_dir.exists():
-        print('=> creating {}'.format(root_output_dir))
-        root_output_dir.mkdir()
-    if not root_log_dir.exists():
-        print('=> creating {}'.format(root_log_dir))
-        root_log_dir.mkdir()
-
     # set up logger dir
     dataset = cfg.DATASET.DATASET
     dataset = dataset.replace(':', '_')
     model = cfg.MODEL.NAME
     cfg_path = os.path.basename(cfg_path).split('.')[0]
 
-    final_output_dir = root_output_dir / dataset / model / cfg_path
-    final_log_dir = root_log_dir / dataset / model / cfg_path
-    #print(final_output_dir)
-    #print(final_log_dir)
-    if not final_output_dir.exists():
-        print('=> creating {}'.format(final_output_dir))
-        final_output_dir.mkdir()
-    if not final_log_dir.exists():
-        print('=> creating {}'.format(final_log_dir))
-        final_log_dir.mkdir()
-
     if rank in [-1, 0]:
         time_str = time.strftime('%Y-%m-%d-%H-%M')
         log_file = '{}_{}_{}.log'.format(cfg_path, time_str, phase)
-        final_log_file = final_log_dir / log_file
+        # set up tensorboard_log_dir
+        tensorboard_log_dir = Path(cfg.LOG_DIR) / dataset / model / \
+                                  (cfg_path + '_' + time_str)
+        final_output_dir = tensorboard_log_dir
+        if not tensorboard_log_dir.exists():
+            print('=> creating {}'.format(tensorboard_log_dir))
+            tensorboard_log_dir.mkdir(parents=True)
+
+        final_log_file = tensorboard_log_dir / log_file
         head = '%(asctime)-15s %(message)s'
         logging.basicConfig(filename=str(final_log_file),
                             format=head)
@@ -50,17 +37,9 @@ def create_logger(cfg, cfg_path, phase='train', rank=-1):
         console = logging.StreamHandler()
         logging.getLogger('').addHandler(console)
 
-        # set up tensorboard_log_dir
-        tensorboard_log_dir = Path(cfg.LOG_DIR) / dataset / model / \
-            (cfg_path + '_' + time_str)
-
-        if not tensorboard_log_dir.exists():
-            print('=> creating {}'.format(tensorboard_log_dir))
-            tensorboard_log_dir.mkdir(parents=True)
-
         return logger, str(final_output_dir), str(tensorboard_log_dir)
     else:
-        return None, str(final_output_dir), None
+        return None, None, None
 
 
 def select_device(logger, device='', batch_size=None):
@@ -96,7 +75,7 @@ def get_optimizer(cfg, model):
     if cfg.TRAIN.OPTIMIZER == 'sgd':
         optimizer = optim.SGD(
             model.parameters(),
-            lr=cfg.TRAIN.LR,
+            lr=cfg.TRAIN.LR0,
             momentum=cfg.TRAIN.MOMENTUM,
             weight_decay=cfg.TRAIN.WD,
             nesterov=cfg.TRAIN.NESTEROV
@@ -104,7 +83,7 @@ def get_optimizer(cfg, model):
     elif cfg.TRAIN.OPTIMIZER == 'adam':
         optimizer = optim.Adam(
             model.parameters(),
-            lr=cfg.TRAIN.LR
+            lr=cfg.TRAIN.LR0
         )
 
     return optimizer

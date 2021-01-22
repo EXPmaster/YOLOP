@@ -7,7 +7,7 @@ from visualization import plot_img_and_mask
 from pathlib import Path
 from PIL import Image
 from torch.utils.data import Dataset
-from ..utils import letterbox, augment_hsv, random_perspective, xyxy2xywh
+from ..utils import letterbox, augment_hsv, random_perspective, xyxy2xywh, cutout
 
 
 class AutoDriveDataset(Dataset):
@@ -46,7 +46,6 @@ class AutoDriveDataset(Dataset):
 
         self.db = []
 
-        self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
 
         self.scale_factor = cfg.DATASET.SCALE_FACTOR
@@ -109,7 +108,7 @@ class AutoDriveDataset(Dataset):
         
         (img, seg_label), ratio, pad = letterbox((img, seg_label), resized_shape, auto=False, scaleup=self.is_train)
         shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
-        ratio = (w / w0, h / h0)
+        # ratio = (w / w0, h / h0)
         # print(resized_shape)
         
         det_label = data["label"]
@@ -118,11 +117,11 @@ class AutoDriveDataset(Dataset):
         if det_label.size > 0:
             # Normalized xywh to pixel xyxy format
             labels = det_label.copy()
-            labels[:, 1] = ratio[0] * w0 * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
-            labels[:, 2] = ratio[1] * h0 * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
-            labels[:, 3] = ratio[0] * w0 * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
-            labels[:, 4] = ratio[1] * h0 * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
-  
+            labels[:, 1] = ratio[0] * w * (det_label[:, 1] - det_label[:, 3] / 2) + pad[0]  # pad width
+            labels[:, 2] = ratio[1] * h * (det_label[:, 2] - det_label[:, 4] / 2) + pad[1]  # pad height
+            labels[:, 3] = ratio[0] * w * (det_label[:, 1] + det_label[:, 3] / 2) + pad[0]
+            labels[:, 4] = ratio[1] * h * (det_label[:, 2] + det_label[:, 4] / 2) + pad[1]
+            
         if self.is_train:
             combination = (img, seg_label)
             (img, seg_label), labels = random_perspective(
@@ -135,6 +134,7 @@ class AutoDriveDataset(Dataset):
             )
             #print(labels.shape)
             augment_hsv(img, hgain=self.cfg.DATASET.HSV_H, sgain=self.cfg.DATASET.HSV_S, vgain=self.cfg.DATASET.HSV_V)
+            # img, seg_label, labels = cutout(combination=combination, labels=labels)
 
             if len(labels):
                 # convert xyxy to xywh
@@ -178,8 +178,11 @@ class AutoDriveDataset(Dataset):
         # img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
         
+        # cutout_mask = seg_label < 0
         _,seg1 = cv2.threshold(seg_label,1,255,cv2.THRESH_BINARY)
         _,seg2 = cv2.threshold(seg_label,1,255,cv2.THRESH_BINARY_INV)
+        # seg1[cutout_mask] = 0
+        # seg2[cutout_mask] = 0
         seg1 = self.Tensor(seg1)
         seg2 = self.Tensor(seg2)
         seg_label = torch.stack((seg2[0],seg1[0]),0)
@@ -191,7 +194,7 @@ class AutoDriveDataset(Dataset):
         #         _, seg_mask = torch.max(seg_label, 0)
         #         seg_mask = seg_mask > 0.5
         #         # print(seg_mask.shape)
-        #         plot_img_and_mask(img_test, seg_mask, idx)
+        #         plot_img_and_mask(img_test, seg_mask, idx, )
         return img, target, data["image"], shapes
 
     def select_data(self, db):
