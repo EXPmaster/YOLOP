@@ -24,8 +24,8 @@ _C.CUDNN.ENABLED = True
 _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.PRETRAINED = '/home/zwt/DaChuang/runs/BddDataset/_2021-01-23-15-20/epoch-25.pth'
-_C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
+_C.MODEL.PRETRAINED = '/home/zwt/DaChuang/epoch-70.pth'
+_C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
