@@ -10,3 +10,4 @@ PyYAML>=5.3
 scipy>=1.4.1
 tensorboardX
 seaborn
+prefetch_generator

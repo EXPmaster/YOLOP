@@ -8,6 +8,9 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import numpy as np
+from torch.utils.data import DataLoader
+from prefetch_generator import BackgroundGenerator
+from contextlib import contextmanager
 
 
 def create_logger(cfg, cfg_path, phase='train', rank=-1):
@@ -83,7 +86,8 @@ def get_optimizer(cfg, model):
     elif cfg.TRAIN.OPTIMIZER == 'adam':
         optimizer = optim.Adam(
             model.parameters(),
-            lr=cfg.TRAIN.LR0
+            lr=cfg.TRAIN.LR0,
+            betas=(cfg.TRAIN.MOMENTUM, 0.999)
         )
 
     return optimizer
@@ -131,6 +135,24 @@ def xyxy2xywh(x):
 def is_parallel(model):
     return type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
 
+
 def time_synchronized():
     torch.cuda.synchronize() if torch.cuda.is_available() else None
     return time.time()
+
+
+class DataLoaderX(DataLoader):
+    """prefetch dataloader"""
+    def __iter__(self):
+        return BackgroundGenerator(super().__iter__())
+
+@contextmanager
+def torch_distributed_zero_first(local_rank: int):
+    """
+    Decorator to make all processes in distributed training wait for each local_master to do something.
+    """
+    if local_rank not in [-1, 0]:
+        torch.distributed.barrier()
+    yield
+    if local_rank == 0:
+        torch.distributed.barrier()
