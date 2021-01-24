@@ -6,7 +6,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.LOG_DIR = 'runs/'
-_C.GPUS = (0,1,2)
+_C.GPUS = (0, 1)
 _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
@@ -44,9 +44,9 @@ _C.LOSS.SEG_GAIN = 1.0  # segmentation loss gain
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
-_C.DATASET.DATAROOT = '/workspace/wh/projects/DaChuang/bdd/images'
-_C.DATASET.LABELROOT = '/workspace/wh/projects/DaChuang/bdd/labels/100k'
-_C.DATASET.MASKROOT = '/workspace/wh/projects/DaChuang/bdd/bdd_seg_gt'
+_C.DATASET.DATAROOT = '/home/mwliao/bdd/bdd100k/images/100k'
+_C.DATASET.LABELROOT = '/home/mwliao/bdd/bdd100k/labels/100k'
+_C.DATASET.MASKROOT = '/home/mwliao/bdd/bdd100k/bdd_seg_gt'
 _C.DATASET.DATASET = 'BddDataset'
 _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'val'
@@ -71,11 +71,14 @@ _C.TRAIN = CN(new_allowed=True)
 
 _C.TRAIN.LR0 = 0.001  # initial learning rate (SGD=1E-2, Adam=1E-3)
 _C.TRAIN.LRF = 0.2  # final OneCycleLR learning rate (lr0 * lrf)
+_C.TRAIN.WARMUP_EPOCHS = 3.0
+_C.TRAIN.WARMUP_BIASE_LR = 0.1
+_C.TRAIN.WARMUP_MOMENTUM = 0.8
 
 _C.TRAIN.OPTIMIZER = 'adam'
-_C.TRAIN.MOMENTUM = 0.9
+_C.TRAIN.MOMENTUM = 0.937
 _C.TRAIN.WD = 0.0005
-_C.TRAIN.NESTEROV = False
+_C.TRAIN.NESTEROV = True
 _C.TRAIN.GAMMA1 = 0.99
 _C.TRAIN.GAMMA2 = 0.0
 

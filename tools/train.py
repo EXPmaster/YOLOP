@@ -17,6 +17,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import numpy as np
+from lib.utils import DataLoaderX, torch_distributed_zero_first
 from tensorboardX import SummaryWriter
 
 import lib.dataset as dataset
@@ -154,7 +155,7 @@ def main():
             #optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
-
+        
         if os.path.exists(cfg.MODEL.PRETRAINED):
             logger.info("=> loading model '{}'".format(cfg.MODEL.PRETRAINED))
             checkpoint = torch.load(cfg.MODEL.PRETRAINED)
@@ -195,28 +196,20 @@ def main():
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
-    train_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
-        cfg=cfg,
-        is_train=True,
-        inputsize=cfg.MODEL.IMAGE_SIZE,
-        transform=transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ])
-    )
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if rank != -1 else None
-    valid_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
-        cfg=cfg,
-        is_train=False,
-        inputsize=cfg.MODEL.IMAGE_SIZE,
-        transform=transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ])
-    )
-    valid_sampler = torch.utils.data.distributed.DistributedSampler(valid_dataset) if rank != -1 else None
 
-    train_loader = torch.utils.data.DataLoader(
+    with torch_distributed_zero_first(rank):
+        train_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
+            cfg=cfg,
+            is_train=True,
+            inputsize=cfg.MODEL.IMAGE_SIZE,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                normalize,
+            ])
+        )
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if rank != -1 else None
+
+    train_loader = DataLoaderX(
         train_dataset,
         batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
         shuffle=(cfg.TRAIN.SHUFFLE & rank == -1),
@@ -225,17 +218,29 @@ def main():
         pin_memory=cfg.PIN_MEMORY,
         collate_fn=dataset.AutoDriveDataset.collate_fn
     )
+    num_batch = len(train_loader)
 
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
-        batch_size=cfg.TEST.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
-        shuffle=False,
-        num_workers=cfg.WORKERS,
-        sampler=valid_sampler,
-        pin_memory=cfg.PIN_MEMORY,
-        collate_fn=dataset.AutoDriveDataset.collate_fn
-    )
-    print('load data finished')
+    if rank in [-1, 0]:
+        with torch_distributed_zero_first(rank):
+            valid_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
+                cfg=cfg,
+                is_train=False,
+                inputsize=cfg.MODEL.IMAGE_SIZE,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    normalize,
+                ])
+            )
+
+        valid_loader = DataLoaderX(
+            valid_dataset,
+            batch_size=cfg.TEST.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
+            shuffle=False,
+            num_workers=cfg.WORKERS,
+            pin_memory=cfg.PIN_MEMORY,
+            collate_fn=dataset.AutoDriveDataset.collate_fn
+        )
+        print('load data finished')
     
     if rank in [-1, 0]:
         if cfg.NEED_AUTOANCHOR:
@@ -243,6 +248,7 @@ def main():
             run_anchor(train_dataset, model=model, thr=cfg.TRAIN.ANCHOR_THRESHOLD, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
     # training
+    num_warmup = max(round(cfg.TRAIN.WARMUP_EPOCHS * num_batch), 1000)
     scaler = amp.GradScaler(enabled=device.type != 'cpu')
     print('=> start training...')
     for epoch in range(begin_epoch+1, cfg.TRAIN.END_EPOCH+1):
@@ -250,12 +256,12 @@ def main():
             train_loader.sampler.set_epoch(epoch)
         # train for one epoch
         train(cfg, train_loader, model, criterion, optimizer, scaler,
-              epoch, writer_dict, logger, device, rank)
+              epoch, num_batch, num_warmup, writer_dict, logger, device, rank)
         
         lr_scheduler.step()
 
         # evaluate on validation set
-        if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
+        if (epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH) and rank in [-1, 0]:
             # print('validate')
             segment_results,detect_results, total_loss,maps, times = validate(
                 epoch,cfg, valid_loader, valid_dataset, model, criterion,
@@ -269,8 +275,7 @@ def main():
                           epoch,  loss=total_loss, seg_acc=segment_results[0],seg_miou=segment_results[2],seg_fiou=segment_results[3],
                           p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3])
             logger.info(msg)
-            
-            # TODO: validation
+
             # if perf_indicator >= best_perf:
             #     best_perf = perf_indicator
             #     best_model = True
