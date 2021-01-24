@@ -2,7 +2,7 @@ import time
 from lib.core.evaluate import ConfusionMatrix,SegmentationMetric
 from lib.core.general import non_max_suppression,check_img_size,scale_coords,xyxy2xywh,xywh2xyxy,box_iou,coco80_to_coco91_class,plot_images,ap_per_class,output_to_target
 from lib.utils.utils import time_synchronized
-from visualization import plot_img_and_mask,plot_one_box
+from visualization import plot_img_and_mask,plot_one_box,show_seg_result
 import torch
 from threading import Thread
 import numpy as np
@@ -143,8 +143,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
     seen =  0 
     confusion_matrix = ConfusionMatrix(nc=model.nc) #detector confusion matrix
-    metric = SegmentationMetric(2) #segment confusion matrix
-    metric.reset()    
+    metric = SegmentationMetric(2) #segment confusion matrix    
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
@@ -174,6 +173,10 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
         with torch.no_grad():
             t = time_synchronized()
+            pad_w, pad_h = shapes[0][1][1]
+            pad_w = int(pad_w)
+            pad_h = int(pad_h)
+            
             det_out, seg_out= model(img)
             inf_out,train_out = det_out
             t_inf += time_synchronized() - t
@@ -181,8 +184,11 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #segment evaluation
             _,predict=torch.max(seg_out, 1)
             _,gt=torch.max(target[1], 1)
-            predict = predict[:,56:200,:]
-            gt = gt[:,56:200,:]
+            predict = predict[:, pad_h:height-pad_h, pad_w:width-pad_w]
+            gt = gt[:, pad_h:height-pad_h, pad_w:width-pad_w]
+            # print(predict.shape)
+            # print(gt.shape)
+            metric.reset()
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
             meanAcc = metric.meanPixelAccuracy()
@@ -213,14 +219,16 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             if config.TEST.PLOTS:
                 if batch_i == 0:
                     for i in range(test_batch_size):
-                        img_path = Path(paths[i])
-                        img_test = Image.open(img_path)
+                        # img_path = Path(paths[i])
+                        # img_test = Image.open(img_path)
+                        img_test = cv2.imread(paths[i])
+                        # img_test = cv2.resize(img_test, (int(256), int(144)), interpolation=cv2.INTER_AREA)
                         seg_mask = predict[i].float()
                         seg_mask = tf(seg_mask.cpu())
-                        seg_mask = seg_mask.squeeze().cpu().numpy()
-                        seg_mask = seg_mask > 0.5
-                        # print(seg_mask.shape)
-                        plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
+                        seg_mask = seg_mask.int().squeeze().cpu().numpy()
+                        # seg_mask = seg_mask > 0.5
+                        # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
+                        show_seg_result(img_test, seg_mask, i,epoch,save_dir)
 
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()

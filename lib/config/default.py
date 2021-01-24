@@ -11,7 +11,7 @@ _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = True
-_C.NEED_AUTOANCHOR = True
+_C.NEED_AUTOANCHOR = False
 _C.DEBUG = False
 
 # Cudnn related params
@@ -25,7 +25,7 @@ _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
 _C.MODEL.PRETRAINED = ''
-_C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
+_C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
@@ -83,12 +83,13 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
 _C.TRAIN.VAL_FREQ = 1
-_C.TRAIN.BATCH_SIZE_PER_GPU = 4
+_C.TRAIN.BATCH_SIZE_PER_GPU = 16
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
+_C.TRAIN.SEG_ONLY = False
 _C.TRAIN.FREEZE_SEG = True
 _C.TRAIN.PLOT = True
 

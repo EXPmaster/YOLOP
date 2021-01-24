@@ -125,6 +125,7 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
+    freeze_parameter = ['model.{}.*'.format(x) for x in range(25, 35)]
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
     #     last_epoch=last_epoch
@@ -149,6 +150,18 @@ def main():
             optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
+
+        if os.path.exists(cfg.MODEL.PRETRAINED):
+            logger.info("=> loading model '{}'".format(cfg.MODEL.PRETRAINED))
+            checkpoint = torch.load(checkpoint_file)
+            model.load_state_dict(checkpoint['state_dict'])
+
+        if cfg.TRAIN.FREEZE_SEG and cfg.TRAIN.SEG_ONLY:
+            for k, v in model.named_parameters():
+                v.requires_grad = False  # train all layers
+                if any(x in k for x in freeze_parameter):
+                    # print('freezing %s' % k)
+                    v.requires_grad = True
     # print('rank = {}'.format(rank))
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()

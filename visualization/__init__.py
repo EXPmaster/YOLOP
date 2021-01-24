@@ -1,1 +1,1 @@
-from .plot import plot_img_and_mask,plot_one_box
+from .plot import plot_img_and_mask,plot_one_box,show_seg_result
