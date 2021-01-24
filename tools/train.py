@@ -168,7 +168,8 @@ def main():
     
     # # DDP mode
     if rank != -1:
-        model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
+        model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank,find_unused_parameters=True)
+
 
     # assign model params
     model.gr = 1.0

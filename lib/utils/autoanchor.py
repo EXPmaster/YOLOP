@@ -28,6 +28,7 @@ def run_anchor(dataset, model, thr=4.0, imgsz=640):
     det.anchor_grid[:] = new_anchors.clone().view_as(det.anchor_grid)  # for inference
     det.anchors[:] = new_anchors.clone().view_as(det.anchors) / det.stride.to(det.anchors.device).view(-1, 1, 1)  # loss
     check_anchor_order(det)
+    print(det.anchors)
     print('New anchors saved to model. Update model config to use these anchors in the future.')
 
 
