@@ -6,7 +6,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.LOG_DIR = 'runs/'
-_C.GPUS = (0,1,2)
+_C.GPUS = (0,)
 _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
@@ -44,9 +44,9 @@ _C.LOSS.SEG_GAIN = 1.0  # segmentation loss gain
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
-_C.DATASET.DATAROOT = '/workspace/wh/projects/DaChuang/bdd/images'
-_C.DATASET.LABELROOT = '/workspace/wh/projects/DaChuang/bdd/labels/100k'
-_C.DATASET.MASKROOT = '/workspace/wh/projects/DaChuang/bdd/bdd_seg_gt'
+_C.DATASET.DATAROOT = '/home/mwliao/bdd/bdd100k/images/100k'
+_C.DATASET.LABELROOT = '/home/mwliao/bdd/bdd100k/labels/100k'
+_C.DATASET.MASKROOT = '/home/mwliao/bdd/bdd100k/bdd_seg_gt'
 _C.DATASET.DATASET = 'BddDataset'
 _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'val'
@@ -89,8 +89,8 @@ _C.TRAIN.SHUFFLE = True
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
-_C.TRAIN.SEG_ONLY = False
-_C.TRAIN.FREEZE_SEG = True
+_C.TRAIN.SEG_ONLY = True
+_C.TRAIN.FREEZE_SEG = False
 _C.TRAIN.PLOT = True
 
 # testing
