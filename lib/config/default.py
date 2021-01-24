@@ -25,7 +25,7 @@ _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
 _C.MODEL.PRETRAINED = '/workspace/wh/projects/DaChuang/runs/BddDataset/_2021-01-22-10-23/epoch-70.pth'
-_C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
+_C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
@@ -90,7 +90,6 @@ _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
 _C.TRAIN.SEG_ONLY = True
-_C.TRAIN.FREEZE_DET = True
 _C.TRAIN.FREEZE_SEG = False     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
 _C.TRAIN.PLOT = True
 

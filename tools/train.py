@@ -116,6 +116,7 @@ def main():
     
     model = get_net(cfg).to(device)
     print("finish build model")
+    
 
     # define loss function (criterion) and optimizer
     criterion = get_loss(cfg, device=device)
@@ -126,7 +127,7 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-    freeze_parameter = ['model.{}.*'.format(x) for x in range(25, 35)]
+    unfreeze_parameter = ['model.{}'.format(x) for x in range(25, 35)]
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
     #     last_epoch=last_epoch
@@ -149,21 +150,32 @@ def main():
             # best_perf = checkpoint['perf']
             last_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
+            optimizer = get_optimizer(cfg, model)
+            #optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
 
         if os.path.exists(cfg.MODEL.PRETRAINED):
             logger.info("=> loading model '{}'".format(cfg.MODEL.PRETRAINED))
-            checkpoint = torch.load(checkpoint_file)
+            checkpoint = torch.load(cfg.MODEL.PRETRAINED)
+            begin_epoch = checkpoint['epoch']
+            # best_perf = checkpoint['perf']
+            last_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            logger.info("=> loaded checkpoint '{}' (epoch {})".format(
+                cfg.MODEL.PRETRAINED, checkpoint['epoch']))
 
-        if cfg.TRAIN.SEG_ONLY and cfg.TRAIN.FREEZE_DET: #second stage:freeze detect, only train branch of segment
+        if cfg.TRAIN.SEG_ONLY: #second stage:freeze detect, only train branch of segment
             for k, v in model.named_parameters():
                 v.requires_grad = False  # train all layers
-                if any(x in k for x in freeze_parameter):
-                    # print('freezing %s' % k)
+                if any(x in k for x in unfreeze_parameter):
+                    #print('freezing %s' % k)
                     v.requires_grad = True
+            optimizer = get_optimizer(cfg, model)
+    
+
+
     # print('rank = {}'.format(rank))
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()

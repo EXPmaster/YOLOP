@@ -217,7 +217,6 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
             t_nms += time_synchronized() - t
 
-            #可视化
             if config.TEST.PLOTS:
                 if batch_i == 0:
                     for i in range(test_batch_size):
@@ -315,8 +314,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                     confusion_matrix.process_batch(pred, torch.cat((labels[:, 0:1], tbox), 1))
 
                 # Per target class
-                for cls in torch.unique(tcls_tensor):   #用于去重，图片有多少类
-                    ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # prediction indices
+                for cls in torch.unique(tcls_tensor):   #用于去重，图片有多少�?                    ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # prediction indices
                     pi = (cls == pred[:, 5]).nonzero(as_tuple=False).view(-1)  # target indices
 
                     # Search for detections
