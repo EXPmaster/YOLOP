@@ -150,11 +150,18 @@ def main():
             optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
-
+        
         if os.path.exists(cfg.MODEL.PRETRAINED):
             logger.info("=> loading model '{}'".format(cfg.MODEL.PRETRAINED))
-            checkpoint = torch.load(checkpoint_file)
+            checkpoint = torch.load(cfg.MODEL.PRETRAINED)
+            begin_epoch = checkpoint['epoch']
+            # best_perf = checkpoint['perf']
+            last_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['state_dict'])
+
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            logger.info("=> loaded checkpoint '{}' (epoch {})".format(
+                cfg.MODEL.PRETRAINED, checkpoint['epoch']))
 
         if cfg.TRAIN.SEG_ONLY:
             for k, v in model.named_parameters():

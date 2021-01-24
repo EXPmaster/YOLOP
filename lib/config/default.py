@@ -24,7 +24,7 @@ _C.CUDNN.ENABLED = True
 _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.PRETRAINED = ''
+_C.MODEL.PRETRAINED = '/home/zwt/DaChuang/runs/BddDataset/_2021-01-23-15-20/epoch-25.pth'
 _C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
@@ -89,8 +89,8 @@ _C.TRAIN.SHUFFLE = True
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
-_C.TRAIN.SEG_ONLY = True
-_C.TRAIN.FREEZE_SEG = False
+_C.TRAIN.SEG_ONLY = False
+_C.TRAIN.FREEZE_SEG = True
 _C.TRAIN.PLOT = True
 
 # testing
