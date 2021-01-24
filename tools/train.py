@@ -121,10 +121,12 @@ def main():
     criterion = get_loss(cfg, device=device)
     optimizer = get_optimizer(cfg, model)
 
+
     # load checkpoint model
     best_perf = 0.0
     best_model = False
     last_epoch = -1
+    freeze_parameter = ['model.{}.*'.format(x) for x in range(25, 35)]
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
     #     last_epoch=last_epoch
@@ -147,10 +149,21 @@ def main():
             # best_perf = checkpoint['perf']
             last_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['state_dict'])
-
             optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
+
+        if os.path.exists(cfg.MODEL.PRETRAINED):
+            logger.info("=> loading model '{}'".format(cfg.MODEL.PRETRAINED))
+            checkpoint = torch.load(checkpoint_file)
+            model.load_state_dict(checkpoint['state_dict'])
+
+        if cfg.TRAIN.SEG_ONLY and cfg.TRAIN.FREEZE_DET: #second stage:freeze detect, only train branch of segment
+            for k, v in model.named_parameters():
+                v.requires_grad = False  # train all layers
+                if any(x in k for x in freeze_parameter):
+                    # print('freezing %s' % k)
+                    v.requires_grad = True
     # print('rank = {}'.format(rank))
     if rank == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
@@ -232,17 +245,17 @@ def main():
         # evaluate on validation set
         if epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH+1 and rank in [-1, 0]:
             # print('validate')
-            segment_results,detect_results, maps, times = validate(
+            segment_results,detect_results, total_loss,maps, times = validate(
                 epoch,cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank
             )
             fi = fitness(np.array(detect_results).reshape(1, -1))  #目标检测评价指标
-            msg = 'Epoch: [{0}]\n' \
+            msg = 'Epoch: [{0}]    Loss({loss:.3f})\n' \
                       'Segment: Acc({seg_acc:.3f})    mIOU({seg_miou:.3f})    FIOU ({seg_fiou:.3f})\n' \
-                      'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5:0.95({map:.3f})  mAP@0.5({map50:.3f})'.format(
-                          epoch,  seg_acc=segment_results[0],seg_miou=segment_results[2],seg_fiou=segment_results[3],
-                          p=detect_results[0],r=detect_results[1],map=detect_results[2],map50=detect_results[3])
+                      'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})'.format(
+                          epoch,  loss=total_loss, seg_acc=segment_results[0],seg_miou=segment_results[2],seg_fiou=segment_results[3],
+                          p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3])
             logger.info(msg)
             
             # TODO: validation

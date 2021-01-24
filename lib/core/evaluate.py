@@ -199,7 +199,7 @@ class SegmentationMetric(object):
     def classPixelAccuracy(self):
         # return each category pixel accuracy(A more accurate way to call it precision)
         # acc = (TP) / TP + FP
-        classAcc = np.diag(self.confusionMatrix) / self.confusionMatrix.sum(axis=0)
+        classAcc = np.diag(self.confusionMatrix) / (self.confusionMatrix.sum(axis=0) + 1e-12)
         return classAcc
 
     def meanPixelAccuracy(self):
@@ -218,6 +218,7 @@ class SegmentationMetric(object):
 
     def genConfusionMatrix(self, imgPredict, imgLabel):
         # remove classes from unlabeled pixels in gt image and predict
+        # print(imgLabel.shape)
         mask = (imgLabel >= 0) & (imgLabel < self.numClass)
         label = self.numClass * imgLabel[mask] + imgPredict[mask]
         count = np.bincount(label, minlength=self.numClass**2)
@@ -230,7 +231,7 @@ class SegmentationMetric(object):
         iu = np.diag(self.confusionMatrix) / (
                 np.sum(self.confusionMatrix, axis=1) + np.sum(self.confusionMatrix, axis=0) -
                 np.diag(self.confusionMatrix))
-        FWIoU = (freq[freq > 0] * iu[freq > 0])[0]
+        FWIoU = (freq[freq > 0] * iu[freq > 0]).sum()
         return FWIoU
 
 

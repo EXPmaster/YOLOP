@@ -24,8 +24,8 @@ _C.CUDNN.ENABLED = True
 _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.PRETRAINED = ''
-_C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
+_C.MODEL.PRETRAINED = '/workspace/wh/projects/DaChuang/runs/BddDataset/_2021-01-22-10-23/epoch-70.pth'
+_C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
@@ -82,19 +82,21 @@ _C.TRAIN.GAMMA2 = 0.0
 _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
-_C.TRAIN.VAL_FREQ = 5
-_C.TRAIN.BATCH_SIZE_PER_GPU = 12
+_C.TRAIN.VAL_FREQ = 1
+_C.TRAIN.BATCH_SIZE_PER_GPU = 32
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
-_C.TRAIN.FREEZE_SEG = True
+_C.TRAIN.SEG_ONLY = True
+_C.TRAIN.FREEZE_DET = True
+_C.TRAIN.FREEZE_SEG = False     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
 _C.TRAIN.PLOT = True
 
 # testing
 _C.TEST = CN(new_allowed=True)
-_C.TEST.BATCH_SIZE_PER_GPU = 12
+_C.TEST.BATCH_SIZE_PER_GPU = 32
 _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False
