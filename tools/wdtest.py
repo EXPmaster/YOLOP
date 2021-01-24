@@ -78,7 +78,11 @@ class SegmentationMetric(object):
         iu = np.diag(self.confusionMatrix) / (
                 np.sum(self.confusionMatrix, axis=1) + np.sum(self.confusionMatrix, axis=0) -
                 np.diag(self.confusionMatrix))
-        FWIoU = (freq[freq > 0] * iu[freq > 0]).sum()
+        try:
+            FWIoU = (freq[freq > 0] * iu[freq > 0])[0]
+        except:
+            print(freq,iu)
+            return 0
         return FWIoU
 
 
@@ -95,14 +99,14 @@ if __name__ == "__main__":
     #for module in model.modules():
     #    print(module)
 
-    input_ = torch.zeros((24, 3, 256, 256))
+    input_ = torch.rand((24, 2, 256, 256))
     gt_image = torch.rand((24, 2, 256, 256))
     model.eval()
     #print(model.training)
-    pred = model(input_)
+    pred = input_
     #print(pred[1].shape)    #segment:[1, 2, 1280, 736]
-    inf_out , train_out = pred[0]
-    _,predict=torch.max(pred[1], 1)
+    #inf_out , train_out = pred[0]
+    _,predict=torch.max(pred, 1)
     _,gt=torch.max(gt_image, 1)
     predict = predict[:,56:200,:]
     gt = gt[:,56:200,:]
@@ -110,7 +114,7 @@ if __name__ == "__main__":
     print(gt.shape)
     #predict = np.array([0, 0, 1, 1, 2, 2])
     #gt = np.array([1, 0, 1, 2, 2, 0])
-    metric = SegmentationMetric(3)
+    metric = SegmentationMetric(2)
     metric.addBatch(predict, gt)
     acc = metric.pixelAccuracy()
     mIoU = metric.meanIntersectionOverUnion()

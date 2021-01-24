@@ -104,7 +104,7 @@ def main():
     # bulid up model
     # start_time = time.time()
     print("begin to bulid up model...")
-    # DPP mode
+    # DP mode
     device = select_device(logger, batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU* len(cfg.GPUS)) if not cfg.DEBUG \
         else select_device(logger, 'cpu')
 
@@ -138,6 +138,8 @@ def main():
         checkpoint_file = os.path.join(
             os.path.join(cfg.LOG_DIR, cfg.DATASET.DATASET), 'checkpoint.pth'
         )
+        print(checkpoint_file)
+        print(os.path.exists(checkpoint_file))
         if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
             checkpoint = torch.load(checkpoint_file)

@@ -10,7 +10,7 @@ _C.GPUS = (0,1,2)
 _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
-_C.AUTO_RESUME = False
+_C.AUTO_RESUME = True
 _C.NEED_AUTOANCHOR = False
 _C.DEBUG = False
 

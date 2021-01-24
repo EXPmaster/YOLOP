@@ -226,11 +226,11 @@ class SegmentationMetric(object):
 
     def Frequency_Weighted_Intersection_over_Union(self):
         # FWIOU =     [(TP+FN)/(TP+FP+TN+FN)] *[TP / (TP + FP + FN)]
-        freq = np.sum(self.confusionMatrix, axis=1)[1] / np.sum(self.confusionMatrix)
+        freq = np.sum(self.confusionMatrix, axis=1) / np.sum(self.confusionMatrix)
         iu = np.diag(self.confusionMatrix) / (
                 np.sum(self.confusionMatrix, axis=1) + np.sum(self.confusionMatrix, axis=0) -
                 np.diag(self.confusionMatrix))
-        FWIoU = (freq[freq > 0] * iu[freq > 0]).sum()
+        FWIoU = (freq[freq > 0] * iu[freq > 0])[0]
         return FWIoU
 
 

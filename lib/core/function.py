@@ -110,7 +110,11 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # setting
     max_stride = 32
     weights = None
-    save_dir = output_dir + os.path.sep + 'visualization'
+    try:
+        save_dir = output_dir + os.path.sep + 'visualization'
+    except:
+        print(output_dir)
+        save_dir = "/workspace/wh/projects/DaChuang/runs/BddDataset/visualization"
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
     # print(save_dir)
