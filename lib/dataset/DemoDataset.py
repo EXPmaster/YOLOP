@@ -70,6 +70,7 @@ class LoadImages:  # for inference
                     path = self.files[self.count]
                     self.new_video(path)
                     ret_val, img0 = self.cap.read()
+            h0, w0 = img0.shape[:2]
 
             self.frame += 1
             print('video %g/%g (%g/%g) %s: ' % (self.count + 1, self.nf, self.frame, self.nframes, path), end='')
@@ -80,16 +81,20 @@ class LoadImages:  # for inference
             img0 = cv2.imread(path)  # BGR
             assert img0 is not None, 'Image Not Found ' + path
             print('image %g/%g %s: \n' % (self.count, self.nf, path), end='')
+            h0, w0 = img0.shape[:2]
 
         # Padded resize
-        img = letterbox_for_img(img0, new_shape=self.img_size)[0]
+        img, ratio,pad = letterbox_for_img(img0, new_shape=self.img_size)
+        h, w = img.shape[:2]
+        shapes = (h0, w0), ((h / h0, w / w0), pad)
 
         # Convert
         #img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
 
+
         # cv2.imwrite(path + '.letterbox.jpg', 255 * img.transpose((1, 2, 0))[:, :, ::-1])  # save letterbox image
-        return path, img, img0, self.cap
+        return path, img, img0, self.cap, shapes
 
     def new_video(self, path):
         self.frame = 0
