@@ -84,7 +84,7 @@ class LoadImages:  # for inference
             h0, w0 = img0.shape[:2]
 
         # Padded resize
-        img, ratio,pad = letterbox_for_img(img0, new_shape=self.img_size)
+        img, ratio,pad = letterbox_for_img(img0, new_shape=self.img_size,auto=False)
         h, w = img.shape[:2]
         shapes = (h0, w0), ((h / h0, w / w0), pad)
 

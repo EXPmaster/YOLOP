@@ -103,8 +103,8 @@ _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False
 _C.TEST.PLOTS = True
-_C.TEST.NMS_CONF_THRES = 0.001
-_C.TEST.NMS_IOU_THRES = 0.6
+_C.TEST.NMS_CONF_THRESHOLD  = 0.001
+_C.TEST.NMS_IOU_THRESHOLD  = 0.6
 
 
 def update_config(cfg, args):
@@ -116,6 +116,14 @@ def update_config(cfg, args):
 
     if args.logDir:
         cfg.LOG_DIR = args.logDir
+    
+    if args.conf_thres:
+        cfg.TEST.NMS_CONF_THRESHOLD = args.conf_thres
+
+    if args.iou_thres:
+        cfg.TEST.NMS_IOU_THRESHOLD = args.iou_thres
+    
+
 
     # cfg.MODEL.PRETRAINED = os.path.join(
     #     cfg.DATA_DIR, cfg.MODEL.PRETRAINED

@@ -22,28 +22,30 @@ def plot_img_and_mask(img, mask, index,epoch,save_dir):
     plt.savefig(save_dir+"/batch_{}_{}_seg.png".format(epoch,index))
 
 def show_seg_result(img, result, index, epoch, save_dir=None, palette=None,is_demo=False):
-        # img = mmcv.imread(img)
-        # img = img.copy()
-        # seg = result[0]
-        if palette is None:
-                palette = np.random.randint(
-                    0, 255, size=(2, 3))
-        palette[0] = 0
-        palette = np.array(palette)
-        assert palette.shape[0] == 2 # len(classes)
-        assert palette.shape[1] == 3
-        assert len(palette.shape) == 2
-        color_seg = np.zeros((result.shape[0], result.shape[1], 3), dtype=np.uint8)
-        for label, color in enumerate(palette):
-            color_seg[result == label, :] = color
-        # convert to BGR
-        color_seg = color_seg[..., ::-1]
+    # img = mmcv.imread(img)
+    # img = img.copy()
+    # seg = result[0]
+    if palette is None:
+        palette = np.random.randint(
+                0, 255, size=(2, 3))
+    palette[0] = 0
+    palette = np.array(palette)
+    assert palette.shape[0] == 2 # len(classes)
+    assert palette.shape[1] == 3
+    assert len(palette.shape) == 2
+    color_seg = np.zeros((result.shape[0], result.shape[1], 3), dtype=np.uint8)
+    for label, color in enumerate(palette):
+        color_seg[result == label, :] = color
+    # convert to BGR
+    color_seg = color_seg[..., ::-1]
 
-        img = img * 0.5 + color_seg * 0.5
-        img = img.astype(np.uint8)
+    img = img * 0.5 + color_seg * 0.5
+    img = img.astype(np.uint8)
 
-        if not is_demo:
-            cv2.imwrite(save_dir+"/batch_{}_{}_segresult.png".format(epoch,index), img)
+    if not is_demo:
+        cv2.imwrite(save_dir+"/batch_{}_{}_segresult.png".format(epoch,index), img)
+            
+    return img
 
 def plot_one_box(x, img, color=None, label=None, line_thickness=None):
     # Plots one bounding box on image img

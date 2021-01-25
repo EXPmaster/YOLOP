@@ -1,11 +1,8 @@
-def a(num):
-    try:
-        a=1/num
-    except:
-        print("error")
-        return
-    print("ss")
+import torch
 
-if __name__ == '__main__':
-    a(0)
-    a(1)
+height, weight = 512, 512
+pad_h, pad_w = 112, 0
+predict = torch.randn(1,height,weight)
+print(predict.shape)
+predict = predict[:,pad_h:height-pad_h,pad_w:weight-pad_w]
+print(predict.shape)
