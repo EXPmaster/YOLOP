@@ -13,10 +13,11 @@ import json
 import random
 import cv2
 import os
+import math
 from torch.cuda import amp
 
 
-def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
+def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_batch, num_warmup,
           writer_dict, logger, device, rank=-1):
     """
     train for one epoch
@@ -45,8 +46,22 @@ def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
     model.train()
     start = time.time()
     for i, (input, target, _, _) in enumerate(train_loader):
+        num_iter = i + num_batch * (epoch - 1)
+
+        if num_iter < num_warmup:
+            # warm up
+            lf = lambda x: ((1 + math.cos(x * math.pi / cfg.TRAIN.END_EPOCH)) / 2) * \
+                           (1 - cfg.TRAIN.LRF) + cfg.TRAIN.LRF  # cosine
+            xi = [0, num_warmup]
+            # model.gr = np.interp(ni, xi, [0.0, 1.0])  # iou loss ratio (obj_loss = 1.0 or iou)
+            for j, x in enumerate(optimizer.param_groups):
+                # bias lr falls from 0.1 to lr0, all other lrs rise from 0.0 to lr0
+                x['lr'] = np.interp(num_iter, xi, [cfg.TRAIN.WARMUP_BIASE_LR if j == 2 else 0.0, x['initial_lr'] * lf(epoch)])
+                if 'momentum' in x:
+                    x['momentum'] = np.interp(num_iter, xi, [cfg.TRAIN.WARMUP_MOMENTUM, cfg.TRAIN.MOMENTUM])
+
         data_time.update(time.time() - start)
-        if not config.DEBUG:
+        if not cfg.DEBUG:
             input = input.to(device, non_blocking=True)
             assign_target = []
             for tgt in target:
@@ -73,7 +88,7 @@ def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
             # measure elapsed time
             batch_time.update(time.time() - start)
             end = time.time()
-            if i % config.PRINT_FREQ == 0:
+            if i % cfg.PRINT_FREQ == 0:
                 msg = 'Epoch: [{0}][{1}/{2}]\t' \
                       'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
                       'Speed {speed:.1f} samples/s\t' \
@@ -89,7 +104,6 @@ def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
                 writer.add_scalar('train_loss', losses.val, global_steps)
                 # writer.add_scalar('train_acc', acc.val, global_steps)
                 writer_dict['train_global_steps'] = global_steps + 1
-
 
 
 def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir,
@@ -110,14 +124,18 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # setting
     max_stride = 32
     weights = None
-    save_dir = output_dir + os.path.sep + 'visualization'
+    try:
+        save_dir = output_dir + os.path.sep + 'visualization'
+    except:
+        print(output_dir)
+        save_dir = "/workspace/wh/projects/DaChuang/runs/BddDataset/visualization"
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
     # print(save_dir)
     _, imgsz = [check_img_size(x, s=max_stride) for x in config.MODEL.IMAGE_SIZE] #imgsz is multiple of max_stride
     batch_size = config.TRAIN.BATCH_SIZE_PER_GPU * len(config.GPUS)
     test_batch_size = config.TEST.BATCH_SIZE_PER_GPU * len(config.GPUS)
-    training = True
+    training = False
     is_coco = False #is coco dataset
     save_conf=False # save auto-label confidences
     verbose=False
@@ -200,8 +218,6 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             mIoU_seg.update(mIoU,img.size(0))
             FWIoU_seg.update(FWIoU,img.size(0))
 
-
-        
             if training:
                 total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
                 losses.update(total_loss.item(), img.size(0))
@@ -215,7 +231,6 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
             t_nms += time_synchronized() - t
 
-            #可视化
             if config.TEST.PLOTS:
                 if batch_i == 0:
                     for i in range(test_batch_size):
@@ -228,7 +243,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         seg_mask = seg_mask.int().squeeze().cpu().numpy()
                         # seg_mask = seg_mask > 0.5
                         # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
-                        show_seg_result(img_test, seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_test, seg_mask, i,epoch,save_dir)
 
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()
@@ -313,7 +328,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                     confusion_matrix.process_batch(pred, torch.cat((labels[:, 0:1], tbox), 1))
 
                 # Per target class
-                for cls in torch.unique(tcls_tensor):   #用于去重，图片有多少类
+                for cls in torch.unique(tcls_tensor):   #用于去重，图片有多少�?                    
                     ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # prediction indices
                     pi = (cls == pred[:, 5]).nonzero(as_tuple=False).view(-1)  # target indices
 
@@ -411,7 +426,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     segment_result = (acc_seg.avg,meanAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
 
     #print segmet_result
-    return segment_result,(mp, mr, map50, map, losses.avg), maps, t
+    return segment_result,(mp, mr, map50, map),losses.avg, maps, t
         
 
 

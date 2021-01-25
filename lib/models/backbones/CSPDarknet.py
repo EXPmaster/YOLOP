@@ -50,7 +50,7 @@ MCnet = [
 [ -1, Conv, [256, 256, 3, 2]],
 [ [-1, 10], Concat, [1]],
 [ -1, BottleneckCSP, [512, 512, 1, False]],
-[ [17, 20, 23], Detect,  [13, [[5,5,8,7,7,13], [13,12,22,17,14,33], [39,28,69,52,138,105]], [128, 256, 512]]],
+[ [17, 20, 23], Detect,  [13, [[3,9,5,11,4,20], [7,18,6,39,12,31], [19,50,38,81,68,157]], [128, 256, 512]]],
 [ 17, Conv, [128, 64, 3, 1]],
 [ -1, Upsample, [None, 2, 'nearest']],
 [ [-1,2], Concat, [1]],
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     for detect_res in pred[0]:
         print(detect_res.shape) #detect
     print(model.training)"""
-    # writer = SummaryWriter()   
+    # writer = SummaryWriter()
     model.train()
     writer.add_graph(model, input_)
     pred = model(input_)
