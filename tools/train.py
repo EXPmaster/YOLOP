@@ -164,10 +164,12 @@ def main():
                 cfg.MODEL.PRETRAINED, checkpoint['epoch']))
 
         if cfg.TRAIN.SEG_ONLY:
+            logger.info('freeze backbone...')
+            # print(model.named_parameters)
             for k, v in model.named_parameters():
                 v.requires_grad = False  # train all layers
                 if any(x in k for x in freeze_parameter):
-                    # print('freezing %s' % k)
+                    print('freezing %s' % k)
                     v.requires_grad = True
     # print('rank = {}'.format(rank))
     if rank == -1 and torch.cuda.device_count() > 1:
