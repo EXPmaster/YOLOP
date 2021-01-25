@@ -241,7 +241,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         seg_mask = seg_mask.int().squeeze().cpu().numpy()
                         # seg_mask = seg_mask > 0.5
                         # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
-                        show_seg_result(img_test, seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_test, seg_mask, i,epoch,save_dir)
 
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()

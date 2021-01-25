@@ -128,7 +128,7 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-    unfreeze_parameter = ['model.{}'.format(x) for x in range(25, 35)]
+    freeze_parameter = ['model.{}'.format(x) for x in range(25, 35)]
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
     #     last_epoch=last_epoch
@@ -142,8 +142,8 @@ def main():
         checkpoint_file = os.path.join(
             os.path.join(cfg.LOG_DIR, cfg.DATASET.DATASET), 'checkpoint.pth'
         )
-        print(checkpoint_file)
-        print(os.path.exists(checkpoint_file))
+        # print(checkpoint_file)
+        # print(os.path.exists(checkpoint_file))
         if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
             checkpoint = torch.load(checkpoint_file)
@@ -151,8 +151,8 @@ def main():
             # best_perf = checkpoint['perf']
             last_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['state_dict'])
-            optimizer = get_optimizer(cfg, model)
-            #optimizer.load_state_dict(checkpoint['optimizer'])
+            # optimizer = get_optimizer(cfg, model)
+            optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
         
@@ -167,13 +167,15 @@ def main():
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 cfg.MODEL.PRETRAINED, checkpoint['epoch']))
 
-        if cfg.TRAIN.SEG_ONLY: #second stage:freeze detect, only train branch of segment
+        if cfg.TRAIN.SEG_ONLY:
+            logger.info('freeze backbone...')
+            # print(model.named_parameters)
             for k, v in model.named_parameters():
                 v.requires_grad = False  # train all layers
-                if any(x in k for x in unfreeze_parameter):
-                    #print('freezing %s' % k)
+                if any(x in k for x in freeze_parameter):
+                    print('freezing %s' % k)
                     v.requires_grad = True
-            optimizer = get_optimizer(cfg, model)
+            # optimizer = get_optimizer(cfg, model)
     
 
 

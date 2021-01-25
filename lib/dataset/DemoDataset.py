@@ -78,13 +78,17 @@ class LoadImages:  # for inference
         else:
             # Read image
             self.count += 1
-            img0 = cv2.imread(path)  # BGR
+            img0 = cv2.imread(path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)  # BGR
             assert img0 is not None, 'Image Not Found ' + path
             print('image %g/%g %s: \n' % (self.count, self.nf, path), end='')
             h0, w0 = img0.shape[:2]
 
         # Padded resize
+<<<<<<< HEAD
         img, ratio,pad = letterbox_for_img(img0, new_shape=self.img_size,auto=False)
+=======
+        img, ratio, pad = letterbox_for_img(img0, new_shape=self.img_size)
+>>>>>>> da5442c1645b0b253cd27d9f1b665e2d9ffa6847
         h, w = img.shape[:2]
         shapes = (h0, w0), ((h / h0, w / w0), pad)
 
