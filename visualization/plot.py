@@ -38,8 +38,9 @@ def show_seg_result(img, result, index, epoch, save_dir=None, palette=None,is_de
             color_seg[result == label, :] = color
         # convert to BGR
         color_seg = color_seg[..., ::-1]
-
-        img = img * 0.5 + color_seg * 0.5
+        
+        img[..., 1] = np.where(result == 1, 200, img[..., 1])
+        # img = img * 0.5 + color_seg * 0.5
         img = img.astype(np.uint8)
         
         if not is_demo:
