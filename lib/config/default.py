@@ -6,11 +6,11 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.LOG_DIR = 'runs/'
-_C.GPUS = (0, 1 ,2)
+_C.GPUS = (0,)
 _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
-_C.AUTO_RESUME = True
+_C.AUTO_RESUME = False
 _C.NEED_AUTOANCHOR = False
 _C.DEBUG = False
 
@@ -24,7 +24,8 @@ _C.CUDNN.ENABLED = True
 _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.PRETRAINED = '/workspace/wh/projects/DaChuang/runs/BddDataset/_2021-01-22-10-23/epoch-70.pth'
+_C.MODEL.PRETRAINED = ''
+#_C.MODEL.PRETRAINED = '/workspace/wh/projects/DaChuang/runs/BddDataset/_2021-01-22-10-23/epoch-70.pth'
 _C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
@@ -69,13 +70,13 @@ _C.DATASET.HSV_V = 0.4  # image HSV-Value augmentation (fraction)
 # train
 _C.TRAIN = CN(new_allowed=True)
 
-_C.TRAIN.LR0 = 0.001  # initial learning rate (SGD=1E-2, Adam=1E-3)
+_C.TRAIN.LR0 = 0.01  # initial learning rate (SGD=1E-2, Adam=1E-3)
 _C.TRAIN.LRF = 0.2  # final OneCycleLR learning rate (lr0 * lrf)
 _C.TRAIN.WARMUP_EPOCHS = 3.0
 _C.TRAIN.WARMUP_BIASE_LR = 0.1
 _C.TRAIN.WARMUP_MOMENTUM = 0.8
 
-_C.TRAIN.OPTIMIZER = 'adam'
+_C.TRAIN.OPTIMIZER = 'sgd'
 _C.TRAIN.MOMENTUM = 0.937
 _C.TRAIN.WD = 0.0005
 _C.TRAIN.NESTEROV = True
@@ -86,19 +87,19 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
 _C.TRAIN.VAL_FREQ = 1
-_C.TRAIN.BATCH_SIZE_PER_GPU = 32
+_C.TRAIN.BATCH_SIZE_PER_GPU = 24
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
-_C.TRAIN.SEG_ONLY = True
-_C.TRAIN.FREEZE_SEG = False     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
+_C.TRAIN.SEG_ONLY = False
+_C.TRAIN.FREEZE_SEG = True     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
 _C.TRAIN.PLOT = True
 
 # testing
 _C.TEST = CN(new_allowed=True)
-_C.TEST.BATCH_SIZE_PER_GPU = 32
+_C.TEST.BATCH_SIZE_PER_GPU = 24
 _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False

@@ -36,7 +36,7 @@ def parse_args():
                         help='log directory',
                         type=str,
                         default='runs/')
-    parser.add_argument('--weights', nargs='+', type=str, default='/workspace/wh/projects/DaChuang/weights/epoch-78.pth', help='model.pth path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='/workspace/wh/projects/DaChuang/weights/epoch-106.pth', help='model.pth path(s)')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
     args = parser.parse_args()
@@ -70,7 +70,7 @@ def main():
     device = select_device(logger, batch_size=cfg.TEST.BATCH_SIZE_PER_GPU* len(cfg.GPUS)) if not cfg.DEBUG \
         else select_device(logger, 'cpu')
 
-    model = get_net(cfg).to(device)
+    model = get_net(cfg)
     print("finish build model")
     
     # define loss function (criterion) and optimizer
@@ -84,6 +84,7 @@ def main():
     model.load_state_dict(checkpoint['state_dict'])
     logger.info("=> loaded checkpoint '{}' ".format(checkpoint_file))
 
+    model = model.to(device)
     model.gr = 1.0
     model.nc = 13
     print('bulid model finished')
