@@ -44,12 +44,8 @@ tf = transforms.Compose(
 
 def detect(cfg,opt):
 
-    global_rank = int(os.environ['RANK']) if 'RANK' in os.environ else -1
-
-    rank = global_rank
-
     logger, final_output_dir, tb_log_dir = create_logger(
-        cfg, cfg.LOG_DIR, 'train', rank=rank)
+        cfg, cfg.LOG_DIR, 'demo')
 
     device = select_device(logger,opt.device)
     if os.path.exists(opt.save_dir):  # output dir
@@ -90,6 +86,7 @@ def detect(cfg,opt):
         # Inference
         t1 = time_synchronized()
         #print(img.size())
+        print(img.shape)
         det_out, seg_out= model(img)
         inf_out,train_out = det_out
         t2 = time_synchronized()
@@ -108,14 +105,13 @@ def detect(cfg,opt):
         #img_seg = img_det.copy()
         save_path = str(opt.save_dir +'/'+ Path(path).name)
 
-        height, width = shapes[0]
+        _, _, height, width = img.shape
         pad_w, pad_h = shapes[1][1]
         pad_w = int(pad_w)
         pad_h = int(pad_h)
         _,predict=torch.max(seg_out, 1)
-        predict = predict[pad_h:height-pad_h, pad_w:width-pad_w]
-
-        seg_mask = predict[0].float()
+        predict = predict[:,pad_h:(height-pad_h),pad_w:width-pad_w]
+        seg_mask = predict.float()
         seg_mask = tf(seg_mask.cpu())
         seg_mask = seg_mask.int().squeeze().cpu().numpy()
         img_det = show_seg_result(img_det, seg_mask, _, _, is_demo=True)
@@ -145,6 +141,8 @@ def detect(cfg,opt):
     print('Results saved to %s' % Path(opt.save_dir))
     print('Done. (%.3fs)' % (time.time() - t0))
     print('inf : (%.4fs/frame)   nms : (%.4fs/frame)' % (inf_time.avg,nms_time.avg))
+
+
 
 
 if __name__ == '__main__':

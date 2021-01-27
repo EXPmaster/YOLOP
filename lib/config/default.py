@@ -6,7 +6,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.LOG_DIR = 'runs/'
-_C.GPUS = (0,)
+_C.GPUS = (0, )
 _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
@@ -24,7 +24,7 @@ _C.CUDNN.ENABLED = True
 _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.PRETRAINED = '/home/zwt/DaChuang/runs/BddDataset/_2021-01-24-14-32/epoch-80.pth'
+_C.MODEL.PRETRAINED = '/home/zwt/DaChuang/runs/BddDataset/_2021-01-24-14-32/epoch-106.pth'
 _C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
@@ -93,7 +93,7 @@ _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
 _C.TRAIN.SEG_ONLY = True
-_C.TRAIN.FREEZE_SEG = True
+_C.TRAIN.FREEZE_SEG = False     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
 _C.TRAIN.PLOT = True
 
 # testing
@@ -103,8 +103,8 @@ _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False
 _C.TEST.PLOTS = True
-_C.TEST.NMS_CONF_THRES = 0.001
-_C.TEST.NMS_IOU_THRES = 0.6
+_C.TEST.NMS_CONF_THRESHOLD  = 0.001
+_C.TEST.NMS_IOU_THRESHOLD  = 0.6
 
 
 def update_config(cfg, args):
@@ -116,6 +116,14 @@ def update_config(cfg, args):
 
     if args.logDir:
         cfg.LOG_DIR = args.logDir
+    
+    if args.conf_thres:
+        cfg.TEST.NMS_CONF_THRESHOLD = args.conf_thres
+
+    if args.iou_thres:
+        cfg.TEST.NMS_IOU_THRESHOLD = args.iou_thres
+    
+
 
     # cfg.MODEL.PRETRAINED = os.path.join(
     #     cfg.DATA_DIR, cfg.MODEL.PRETRAINED

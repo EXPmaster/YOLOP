@@ -9,6 +9,7 @@ bdd/
 subbdd/
 experiments/
 runs/
+inference/
 *.pth
 *.pt
 *.tar

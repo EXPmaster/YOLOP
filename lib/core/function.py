@@ -124,13 +124,11 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # setting
     max_stride = 32
     weights = None
-    try:
-        save_dir = output_dir + os.path.sep + 'visualization'
-    except:
-        print(output_dir)
-        save_dir = "/workspace/wh/projects/DaChuang/runs/BddDataset/visualization"
+
+    save_dir = output_dir + os.path.sep + 'visualization'
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
+
     # print(save_dir)
     _, imgsz = [check_img_size(x, s=max_stride) for x in config.MODEL.IMAGE_SIZE] #imgsz is multiple of max_stride
     batch_size = config.TRAIN.BATCH_SIZE_PER_GPU * len(config.GPUS)
@@ -218,15 +216,15 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             mIoU_seg.update(mIoU,img.size(0))
             FWIoU_seg.update(FWIoU,img.size(0))
 
-            if training:
-                total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
-                losses.update(total_loss.item(), img.size(0))
+            
+            total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
+            losses.update(total_loss.item(), img.size(0))
 
             #NMS
             t = time_synchronized()
             target[0][:, 2:] *= torch.Tensor([width, height, width, height]).to(device)  # to pixels
             lb = [target[0][target[0][:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
-            output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6, labels=lb)
+            output = non_max_suppression(inf_out, conf_thres= config.TEST.NMS_CONF_THRESHOLD, iou_thres=config.TEST.NMS_IOU_THRESHOLD, labels=lb)
             #output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6)
             #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
             t_nms += time_synchronized() - t
@@ -241,9 +239,13 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         seg_mask = predict[i].float()
                         seg_mask = tf(seg_mask.cpu())
                         seg_mask = seg_mask.int().squeeze().cpu().numpy()
+                        gt_mask = gt[i].float()
+                        gt_mask = tf(gt_mask.cpu())
+                        gt_mask = gt_mask.int().squeeze().cpu().numpy()
                         # seg_mask = seg_mask > 0.5
                         # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
                         _ = show_seg_result(img_test, seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_test, gt_mask, i, epoch, save_dir, is_gt=True)
 
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()
@@ -361,7 +363,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
 
     if len(stats) and stats[0].any():
-        p, r, ap, f1, ap_class = ap_per_class(*stats, plot=config.TEST.PLOTS, save_dir=save_dir, names=names)
+        p, r, ap, f1, ap_class = ap_per_class(*stats, plot=False, save_dir=save_dir, names=names)
         p, r, ap50, ap = p[:, 0], r[:, 0], ap[:, 0], ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
         mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
@@ -416,7 +418,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
     # Return results
     if not training:
-        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
+        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if config.TEST.SAVE_TXT else ''
         print(f"Results saved to {save_dir}{s}")
     model.float()  # for training
     maps = np.zeros(nc) + map

@@ -121,10 +121,10 @@ class MultiHeadLoss(nn.Module):
 
         # bs = tobj.shape[0]  # batch size
         if cfg.TRAIN.FREEZE_SEG:
-            # lseg = 0 * lseg
-            lbox = 0 * lbox
-            lobj = 0 * lobj
-            lcls = 0 * lcls
+            lseg = 0 * lseg
+            # lbox = 0 * lbox
+            # lobj = 0 * lobj
+            # lcls = 0 * lcls
 
         loss = lbox + lobj + lcls + lseg
         # loss = lseg
