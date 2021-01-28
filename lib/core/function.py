@@ -13,9 +13,10 @@ import json
 import random
 import cv2
 import os
+from torch.cuda import amp
 
 
-def train(config, train_loader, model, criterion, optimizer, epoch,
+def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
           writer_dict, logger, device, rank=-1):
     """
     train for one epoch
@@ -40,7 +41,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     data_time = AverageMeter()
     losses = AverageMeter()
 
-
     # switch to train mode
     model.train()
     start = time.time()
@@ -52,13 +52,15 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             for tgt in target:
                 assign_target.append(tgt.to(device))
             target = assign_target
-        outputs = model(input)
-        total_loss, head_losses = criterion(outputs, target, model)
+        with amp.autocast(enabled=device.type != 'cpu'):
+            outputs = model(input)
+            total_loss, head_losses = criterion(outputs, target, model)
 
         # compute gradient and do update step
         optimizer.zero_grad()
-        total_loss.backward()
-        optimizer.step()
+        scaler.scale(total_loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         if rank in [-1, 0]:
             # measure accuracy and record loss
@@ -108,12 +110,13 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # setting
     max_stride = 32
     weights = None
-    print(output_dir)
-    save_dir = os.path.abspath(os.path.dirname(output_dir)+os.path.sep+"..")+"/experiments"
-    print(save_dir)
+    save_dir = output_dir + os.path.sep + 'visualization'
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    # print(save_dir)
     _, imgsz = [check_img_size(x, s=max_stride) for x in config.MODEL.IMAGE_SIZE] #imgsz is multiple of max_stride
-    batch_size = config.TRAIN.BATCH_SIZE_PER_GPU*len(config.GPUS)
-    test_batch_size = config.TEST.BATCH_SIZE_PER_GPU*len(config.GPUS)
+    batch_size = config.TRAIN.BATCH_SIZE_PER_GPU * len(config.GPUS)
+    test_batch_size = config.TEST.BATCH_SIZE_PER_GPU * len(config.GPUS)
     training = True
     is_coco = False #is coco dataset
     save_conf=False # save auto-label confidences
@@ -141,6 +144,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     seen =  0 
     confusion_matrix = ConfusionMatrix(nc=model.nc) #detector confusion matrix
     metric = SegmentationMetric(2) #segment confusion matrix
+        
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
@@ -151,7 +155,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     
     losses = AverageMeter()
     acc_seg = AverageMeter()
-    classAcc_seg = AverageMeter()
+    meanAcc_seg = AverageMeter()
     mIoU_seg = AverageMeter()
     FWIoU_seg = AverageMeter()
 
@@ -179,16 +183,15 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             _,gt=torch.max(target[1], 1)
             predict = predict[:,56:200,:]
             gt = gt[:,56:200,:]
-            print(predict.shape)
-            metric.reset()    
+            metric.reset()
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
-            classAcc = metric.classPixelAccuracy()
+            meanAcc = metric.meanPixelAccuracy()
             mIoU = metric.meanIntersectionOverUnion()
             FWIoU = metric.Frequency_Weighted_Intersection_over_Union()
 
             acc_seg.update(acc,img.size(0))
-            classAcc_seg.update(classAcc,img.size(0))
+            meanAcc_seg.update(meanAcc,img.size(0))
             mIoU_seg.update(mIoU,img.size(0))
             FWIoU_seg.update(FWIoU,img.size(0))
 
@@ -213,8 +216,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                     for i in range(test_batch_size):
                         img_path = Path(paths[i])
                         img_test = Image.open(img_path)
-                        seg_mask = predict[i][56:200,:].float()
-
+                        seg_mask = predict[i].float()
                         seg_mask = tf(seg_mask.cpu())
                         seg_mask = seg_mask.squeeze().cpu().numpy()
                         seg_mask = seg_mask > 0.5
@@ -232,7 +234,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         cv2.imwrite(save_dir+"/batch_{}_{}_det_pred.png".format(epoch,i),img_det)
 
                         labels = target[0][target[0][:, 0] == i, 1:]
-                         
+                        # print(labels)
                         labels[:,1:5]=xywh2xyxy(labels[:,1:5])
                         if len(labels):
                             labels[:,1:5]=scale_coords(img[i].shape[1:],labels[:,1:5],img_gt.shape).round()
@@ -399,7 +401,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     for i, c in enumerate(ap_class):
         maps[c] = ap[i]
 
-    segment_result = (acc_seg.avg,classAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
+    segment_result = (acc_seg.avg,meanAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
 
     #print segmet_result
     return segment_result,(mp, mr, map50, map, losses.avg), maps, t

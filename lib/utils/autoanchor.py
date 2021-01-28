@@ -5,6 +5,7 @@ import torch
 import yaml
 from scipy.cluster.vq import kmeans
 from tqdm import tqdm
+from lib.utils import is_parallel
 
 
 def check_anchor_order(m):
@@ -18,41 +19,16 @@ def check_anchor_order(m):
         m.anchor_grid[:] = m.anchor_grid.flip(0)
 
 
-def check_anchors(dataset, model, thr=4.0, imgsz=640):
-    # Check anchor fit to data, recompute if necessary
-    print('\nAnalyzing anchors... ')
-    m = model.module.model[model.module.detector_index] if hasattr(model, 'module')\
-        else model.model[model.detector_index]  # Detect()
-    # shapes = imgsz * dataset.shapes / dataset.shapes.max(1, keepdims=True)
-    shapes = imgsz * dataset.shapes / dataset.shapes
-    # print(shapes.shape[0])
-    scale = np.random.uniform(0.9, 1.1, size=(shapes.shape[0], 1))  # augment scale
-    wh = torch.tensor(np.concatenate([l[0][:, 3:5] * s for s, l in zip(shapes * scale, dataset.labels)])).float()  # wh
-
-    def metric(k):  # compute metric
-        r = wh[:, None] / k[None]
-        x = torch.min(r, 1. / r).min(2)[0]  # ratio metric
-        best = x.max(1)[0]  # best_x
-        aat = (x > 1. / thr).float().sum(1).mean()  # anchors above threshold
-        bpr = (best > 1. / thr).float().mean()  # best possible recall
-        return bpr, aat
-
-    bpr, aat = metric(m.anchor_grid.clone().cpu().view(-1, 2))
-    print('anchors/target = %.2f, Best Possible Recall (BPR) = %.4f' % (aat, bpr), end='')
-    if bpr < 0.98:  # threshold to recompute
-        print('. Attempting to improve anchors, please wait...')
-        na = m.anchor_grid.numel() // 2  # number of anchors
-        new_anchors = kmean_anchors(dataset, n=na, img_size=imgsz, thr=thr, gen=1000, verbose=False)
-        new_bpr = metric(new_anchors.reshape(-1, 2))[0]
-        if new_bpr > bpr:  # replace anchors
-            new_anchors = torch.tensor(new_anchors, device=m.anchors.device).type_as(m.anchors)
-            m.anchor_grid[:] = new_anchors.clone().view_as(m.anchor_grid)  # for inference
-            m.anchors[:] = new_anchors.clone().view_as(m.anchors) / m.stride.to(m.anchors.device).view(-1, 1, 1)  # loss
-            check_anchor_order(m)
-            print('New anchors saved to model. Update model *.yaml to use these anchors in the future.')
-        else:
-            print('Original anchors better than new anchors. Proceeding with original anchors.')
-    print('')  # newline
+def run_anchor(dataset, model, thr=4.0, imgsz=640):
+    det = model.module.model[model.module.detector_index] if is_parallel(model) \
+        else model.model[model.detector_index]
+    anchor_num = det.na * det.nl
+    new_anchors = kmean_anchors(dataset, n=anchor_num, img_size=imgsz, thr=thr, gen=1000, verbose=False)
+    new_anchors = torch.tensor(new_anchors, device=det.anchors.device).type_as(det.anchors)
+    det.anchor_grid[:] = new_anchors.clone().view_as(det.anchor_grid)  # for inference
+    det.anchors[:] = new_anchors.clone().view_as(det.anchors) / det.stride.to(det.anchors.device).view(-1, 1, 1)  # loss
+    check_anchor_order(det)
+    print('New anchors saved to model. Update model config to use these anchors in the future.')
 
 
 def kmean_anchors(path='./data/coco128.yaml', n=9, img_size=640, thr=4.0, gen=1000, verbose=True):

@@ -11,7 +11,6 @@ from lib.models.common import SPP, Conv, Bottleneck, BottleneckCSP, Focus, Conca
 from torch.nn import Upsample
 from lib.utils import check_anchor_order
 
-#from torch.utils.tensorboard import SummaryWriter
 
 CSPDarknet_s = [
 [ -1, Focus, [3, 32, 3]],
@@ -139,6 +138,7 @@ def get_net(is_train, **kwargs):
 
 
 if __name__ == "__main__":
+    from torch.utils.tensorboard import SummaryWriter
     model = get_net(False)
     """for module in model.modules():
         print(module)"""
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     for detect_res in pred[0]:
         print(detect_res.shape) #detect
     print(model.training)"""
-    writer = SummaryWriter()   
+    # writer = SummaryWriter()   
     model.train()
     writer.add_graph(model, input_)
     pred = model(input_)
