@@ -86,7 +86,7 @@ def box_iou(box1, box2):
 
     def box_area(box):
         # box = 4xn
-        return (box[2] - box[0]) * (box[3] - box[1])
+        return (box[2] - box[0]) * (box[3] - box[1]) #(x2-x1)*(y2-y1)
 
     area1 = box_area(box1.T)
     area2 = box_area(box2.T)
@@ -384,7 +384,6 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
             # Precision
             precision = tpc / (tpc + fpc)  # precision curve
             p[ci] = np.interp(-pr_score, -conf[i], precision[:, 0])  # p at pr_score
-
             # AP from recall-precision curve
             for j in range(tp.shape[1]):
                 ap[ci, j], mpre, mrec = compute_ap(recall[:, j], precision[:, j])
@@ -410,8 +409,8 @@ def compute_ap(recall, precision):
     """
 
     # Append sentinel values to beginning and end
-    mrec = recall  # np.concatenate(([0.], recall, [recall[-1] + 1E-3]))
-    mpre = precision  # np.concatenate(([0.], precision, [0.]))
+    mrec = np.concatenate(([0.], recall, [recall[-1] + 1E-3]))
+    mpre = np.concatenate(([1.], precision, [0.]))
 
     # Compute the precision envelope
     mpre = np.flip(np.maximum.accumulate(np.flip(mpre)))
@@ -421,6 +420,7 @@ def compute_ap(recall, precision):
     if method == 'interp':
         x = np.linspace(0, 1, 101)  # 101-point interp (COCO)
         ap = np.trapz(np.interp(x, mrec, mpre), x)  # integrate
+
     else:  # 'continuous'
         i = np.where(mrec[1:] != mrec[:-1])[0]  # points where x axis (recall) changes
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])  # area under curve

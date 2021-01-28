@@ -37,8 +37,8 @@ def parse_args():
                         type=str,
                         default='runs/')
     parser.add_argument('--weights', nargs='+', type=str, default='/workspace/wh/projects/DaChuang/weights/epoch-106.pth', help='model.pth path(s)')
-    parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
-    parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
+    parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
+    parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
     args = parser.parse_args()
 
     return args

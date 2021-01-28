@@ -21,7 +21,7 @@ def plot_img_and_mask(img, mask, index,epoch,save_dir):
     # plt.show()
     plt.savefig(save_dir+"/batch_{}_{}_seg.png".format(epoch,index))
 
-def show_seg_result(img, result, index, epoch, save_dir=None, palette=None,is_demo=False):
+def show_seg_result(img, result, index, epoch, save_dir=None, palette=None,is_demo=False,is_gt=False):
     # img = mmcv.imread(img)
     # img = img.copy()
     # seg = result[0]
@@ -43,7 +43,10 @@ def show_seg_result(img, result, index, epoch, save_dir=None, palette=None,is_de
     img = img.astype(np.uint8)
 
     if not is_demo:
-        cv2.imwrite(save_dir+"/batch_{}_{}_segresult.png".format(epoch,index), img)
+        if not is_gt:
+            cv2.imwrite(save_dir+"/batch_{}_{}_segresult.png".format(epoch,index), img)
+        else:
+            cv2.imwrite(save_dir+"/batch_{}_{}_seg_gt.png".format(epoch,index), img)
             
     return img
 

@@ -239,9 +239,13 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         seg_mask = predict[i].float()
                         seg_mask = tf(seg_mask.cpu())
                         seg_mask = seg_mask.int().squeeze().cpu().numpy()
+                        gt_mask = gt[i].float()
+                        gt_mask = tf(gt_mask.cpu())
+                        gt_mask = gt_mask.int().squeeze().cpu().numpy()
                         # seg_mask = seg_mask > 0.5
                         # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
                         _ = show_seg_result(img_test, seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_test, gt_mask, i, epoch, save_dir, is_gt=True)
 
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()
@@ -265,6 +269,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         cv2.imwrite(save_dir+"/batch_{}_{}_det_gt.png".format(epoch,i),img_gt)
 
         # Statistics per image
+        # output([xyxy,conf,cls])
+        # target[0] ([img_id,cls,xyxy])
         for si, pred in enumerate(output):
             labels = target[0][target[0][:, 0] == si, 1:]     #all object in one image 
             nl = len(labels)    # num of object
@@ -326,15 +332,15 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                     confusion_matrix.process_batch(pred, torch.cat((labels[:, 0:1], tbox), 1))
 
                 # Per target class
-                for cls in torch.unique(tcls_tensor):   #用于去重，图片有多少�?                    
+                for cls in torch.unique(tcls_tensor):                    
                     ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # prediction indices
                     pi = (cls == pred[:, 5]).nonzero(as_tuple=False).view(-1)  # target indices
 
                     # Search for detections
                     if pi.shape[0]:
                         # Prediction to target ious
+                        # n*m  n:pred  m:label
                         ious, i = box_iou(predn[pi, :4], tbox[ti]).max(1)  # best ious, indices
-
                         # Append detections
                         detected_set = set()
                         for j in (ious > iouv[0]).nonzero(as_tuple=False):
@@ -356,19 +362,24 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #Thread(target=plot_images, args=(img, output_to_target(output), paths, f, names), daemon=True).start()
 
     # Compute statistics
-    stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
+    # stats : [[all_img_correct]...[all_img_tcls]]
+    stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy  zip(*) :unzip
 
+    map70 = None
+    map75 = None
     if len(stats) and stats[0].any():
-        p, r, ap, f1, ap_class = ap_per_class(*stats, plot=config.TEST.PLOTS, save_dir=save_dir, names=names)
-        p, r, ap50, ap = p[:, 0], r[:, 0], ap[:, 0], ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
-        mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
+        p, r, ap, f1, ap_class = ap_per_class(*stats, plot=False, save_dir=save_dir, names=names)
+        p, r, ap50, ap70, ap75,ap = p[:, 0], r[:, 0], ap[:, 0], ap[:,4], ap[:,5],ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
+        mp, mr, map50, map70, map75, map = p.mean(), r.mean(), ap50.mean(), ap70.mean(),ap75.mean(),ap.mean()
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt = torch.zeros(1)
 
     # Print results
     pf = '%20s' + '%12.3g' * 6  # print format
-    #print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+    print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+    print(map70)
+    print(map75)
 
     # Print results per class
     if (verbose or (nc <= 20 and not training)) and nc > 1 and len(stats):
