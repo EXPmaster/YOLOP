@@ -127,6 +127,7 @@ class MultiHeadLoss(nn.Module):
             # lcls = 0 * lcls
 
         loss = lbox + lobj + lcls + lseg
+        # loss = lseg
         # return loss * bs, torch.cat((lbox, lobj, lcls, loss)).detach()
         return loss, (lbox.item(), lobj.item(), lcls.item(), lseg.item(), loss.item())
 

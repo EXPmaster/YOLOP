@@ -10,7 +10,7 @@ _C.GPUS = (0,1)
 _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
-_C.AUTO_RESUME = True
+_C.AUTO_RESUME = False
 _C.NEED_AUTOANCHOR = True
 _C.DEBUG = False
 
@@ -25,7 +25,8 @@ _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
 _C.MODEL.PRETRAINED = ''
-_C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
+#_C.MODEL.PRETRAINED = '/workspace/wh/projects/DaChuang/runs/BddDataset/_2021-01-22-10-23/epoch-70.pth'
+_C.MODEL.IMAGE_SIZE = [640, 640]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
@@ -71,11 +72,14 @@ _C.TRAIN = CN(new_allowed=True)
 
 _C.TRAIN.LR0 = 0.001  # initial learning rate (SGD=1E-2, Adam=1E-3)
 _C.TRAIN.LRF = 0.2  # final OneCycleLR learning rate (lr0 * lrf)
+_C.TRAIN.WARMUP_EPOCHS = 3.0
+_C.TRAIN.WARMUP_BIASE_LR = 0.1
+_C.TRAIN.WARMUP_MOMENTUM = 0.8
 
 _C.TRAIN.OPTIMIZER = 'adam'
-_C.TRAIN.MOMENTUM = 0.9
+_C.TRAIN.MOMENTUM = 0.937
 _C.TRAIN.WD = 0.0005
-_C.TRAIN.NESTEROV = False
+_C.TRAIN.NESTEROV = True
 _C.TRAIN.GAMMA1 = 0.99
 _C.TRAIN.GAMMA2 = 0.0
 
@@ -83,24 +87,25 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
 _C.TRAIN.VAL_FREQ = 1
-_C.TRAIN.BATCH_SIZE_PER_GPU = 2
+_C.TRAIN.BATCH_SIZE_PER_GPU = 12
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
-_C.TRAIN.FREEZE_SEG = True
+_C.TRAIN.SEG_ONLY = False
+_C.TRAIN.FREEZE_SEG = True     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
 _C.TRAIN.PLOT = True
 
 # testing
 _C.TEST = CN(new_allowed=True)
-_C.TEST.BATCH_SIZE_PER_GPU = 2
+_C.TEST.BATCH_SIZE_PER_GPU = 12
 _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False
 _C.TEST.PLOTS = True
-_C.TEST.NMS_CONF_THRES = 0.001
-_C.TEST.NMS_IOU_THRES = 0.6
+_C.TEST.NMS_CONF_THRESHOLD  = 0.001
+_C.TEST.NMS_IOU_THRESHOLD  = 0.6
 
 
 def update_config(cfg, args):
@@ -112,6 +117,14 @@ def update_config(cfg, args):
 
     if args.logDir:
         cfg.LOG_DIR = args.logDir
+    
+    if args.conf_thres:
+        cfg.TEST.NMS_CONF_THRESHOLD = args.conf_thres
+
+    if args.iou_thres:
+        cfg.TEST.NMS_IOU_THRESHOLD = args.iou_thres
+    
+
 
     # cfg.MODEL.PRETRAINED = os.path.join(
     #     cfg.DATA_DIR, cfg.MODEL.PRETRAINED

@@ -2,7 +2,7 @@ import time
 from lib.core.evaluate import ConfusionMatrix,SegmentationMetric
 from lib.core.general import non_max_suppression,check_img_size,scale_coords,xyxy2xywh,xywh2xyxy,box_iou,coco80_to_coco91_class,plot_images,ap_per_class,output_to_target
 from lib.utils.utils import time_synchronized
-from visualization import plot_img_and_mask,plot_one_box
+from visualization import plot_img_and_mask,plot_one_box,show_seg_result
 import torch
 from threading import Thread
 import numpy as np
@@ -13,10 +13,11 @@ import json
 import random
 import cv2
 import os
+import math
 from torch.cuda import amp
 
 
-def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
+def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_batch, num_warmup,
           writer_dict, logger, device, rank=-1):
     """
     train for one epoch
@@ -45,8 +46,22 @@ def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
     model.train()
     start = time.time()
     for i, (input, target, _, _) in enumerate(train_loader):
+        num_iter = i + num_batch * (epoch - 1)
+
+        if num_iter < num_warmup:
+            # warm up
+            lf = lambda x: ((1 + math.cos(x * math.pi / cfg.TRAIN.END_EPOCH)) / 2) * \
+                           (1 - cfg.TRAIN.LRF) + cfg.TRAIN.LRF  # cosine
+            xi = [0, num_warmup]
+            # model.gr = np.interp(ni, xi, [0.0, 1.0])  # iou loss ratio (obj_loss = 1.0 or iou)
+            for j, x in enumerate(optimizer.param_groups):
+                # bias lr falls from 0.1 to lr0, all other lrs rise from 0.0 to lr0
+                x['lr'] = np.interp(num_iter, xi, [cfg.TRAIN.WARMUP_BIASE_LR if j == 2 else 0.0, x['initial_lr'] * lf(epoch)])
+                if 'momentum' in x:
+                    x['momentum'] = np.interp(num_iter, xi, [cfg.TRAIN.WARMUP_MOMENTUM, cfg.TRAIN.MOMENTUM])
+
         data_time.update(time.time() - start)
-        if not config.DEBUG:
+        if not cfg.DEBUG:
             input = input.to(device, non_blocking=True)
             assign_target = []
             for tgt in target:
@@ -73,7 +88,7 @@ def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
             # measure elapsed time
             batch_time.update(time.time() - start)
             end = time.time()
-            if i % config.PRINT_FREQ == 0:
+            if i % cfg.PRINT_FREQ == 0:
                 msg = 'Epoch: [{0}][{1}/{2}]\t' \
                       'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
                       'Speed {speed:.1f} samples/s\t' \
@@ -89,7 +104,6 @@ def train(config, train_loader, model, criterion, optimizer, scaler, epoch,
                 writer.add_scalar('train_loss', losses.val, global_steps)
                 # writer.add_scalar('train_acc', acc.val, global_steps)
                 writer_dict['train_global_steps'] = global_steps + 1
-
 
 
 def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir,
@@ -110,14 +124,16 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # setting
     max_stride = 32
     weights = None
+
     save_dir = output_dir + os.path.sep + 'visualization'
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
+
     # print(save_dir)
     _, imgsz = [check_img_size(x, s=max_stride) for x in config.MODEL.IMAGE_SIZE] #imgsz is multiple of max_stride
     batch_size = config.TRAIN.BATCH_SIZE_PER_GPU * len(config.GPUS)
     test_batch_size = config.TEST.BATCH_SIZE_PER_GPU * len(config.GPUS)
-    training = True
+    training = False
     is_coco = False #is coco dataset
     save_conf=False # save auto-label confidences
     verbose=False
@@ -174,6 +190,10 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
         with torch.no_grad():
             t = time_synchronized()
+            pad_w, pad_h = shapes[0][1][1]
+            pad_w = int(pad_w)
+            pad_h = int(pad_h)
+            
             det_out, seg_out= model(img)
             inf_out,train_out = det_out
             t_inf += time_synchronized() - t
@@ -181,8 +201,10 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #segment evaluation
             _,predict=torch.max(seg_out, 1)
             _,gt=torch.max(target[1], 1)
-            predict = predict[:,56:200,:]
-            gt = gt[:,56:200,:]
+            predict = predict[:, pad_h:height-pad_h, pad_w:width-pad_w]
+            gt = gt[:, pad_h:height-pad_h, pad_w:width-pad_w]
+            # print(predict.shape)
+            # print(gt.shape)
             metric.reset()
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
@@ -195,33 +217,36 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             mIoU_seg.update(mIoU,img.size(0))
             FWIoU_seg.update(FWIoU,img.size(0))
 
-
-        
-            if training:
-                total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
-                losses.update(total_loss.item(), img.size(0))
+            
+            total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
+            losses.update(total_loss.item(), img.size(0))
 
             #NMS
             t = time_synchronized()
             target[0][:, 2:] *= torch.Tensor([width, height, width, height]).to(device)  # to pixels
             lb = [target[0][target[0][:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
-            output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6, labels=lb)
+            output = non_max_suppression(inf_out, conf_thres= config.TEST.NMS_CONF_THRESHOLD, iou_thres=config.TEST.NMS_IOU_THRESHOLD, labels=lb)
             #output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6)
             #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
             t_nms += time_synchronized() - t
 
-            #可视化
             if config.TEST.PLOTS:
                 if batch_i == 0:
                     for i in range(test_batch_size):
-                        img_path = Path(paths[i])
-                        img_test = Image.open(img_path)
+                        # img_path = Path(paths[i])
+                        # img_test = Image.open(img_path)
+                        img_test = cv2.imread(paths[i])
+                        # img_test = cv2.resize(img_test, (int(256), int(144)), interpolation=cv2.INTER_AREA)
                         seg_mask = predict[i].float()
                         seg_mask = tf(seg_mask.cpu())
-                        seg_mask = seg_mask.squeeze().cpu().numpy()
-                        seg_mask = seg_mask > 0.5
-                        # print(seg_mask.shape)
-                        plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
+                        seg_mask = seg_mask.int().squeeze().cpu().numpy()
+                        gt_mask = gt[i].float()
+                        gt_mask = tf(gt_mask.cpu())
+                        gt_mask = gt_mask.int().squeeze().cpu().numpy()
+                        # seg_mask = seg_mask > 0.5
+                        # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_test, seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_test, gt_mask, i, epoch, save_dir, is_gt=True)
 
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()
@@ -245,6 +270,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         cv2.imwrite(save_dir+"/batch_{}_{}_det_gt.png".format(epoch,i),img_gt)
 
         # Statistics per image
+        # output([xyxy,conf,cls])
+        # target[0] ([img_id,cls,xyxy])
         for si, pred in enumerate(output):
             labels = target[0][target[0][:, 0] == si, 1:]     #all object in one image 
             nl = len(labels)    # num of object
@@ -306,15 +333,15 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                     confusion_matrix.process_batch(pred, torch.cat((labels[:, 0:1], tbox), 1))
 
                 # Per target class
-                for cls in torch.unique(tcls_tensor):   #用于去重，图片有多少类
+                for cls in torch.unique(tcls_tensor):                    
                     ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # prediction indices
                     pi = (cls == pred[:, 5]).nonzero(as_tuple=False).view(-1)  # target indices
 
                     # Search for detections
                     if pi.shape[0]:
                         # Prediction to target ious
+                        # n*m  n:pred  m:label
                         ious, i = box_iou(predn[pi, :4], tbox[ti]).max(1)  # best ious, indices
-
                         # Append detections
                         detected_set = set()
                         for j in (ious > iouv[0]).nonzero(as_tuple=False):
@@ -336,19 +363,24 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #Thread(target=plot_images, args=(img, output_to_target(output), paths, f, names), daemon=True).start()
 
     # Compute statistics
-    stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
+    # stats : [[all_img_correct]...[all_img_tcls]]
+    stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy  zip(*) :unzip
 
+    map70 = None
+    map75 = None
     if len(stats) and stats[0].any():
-        p, r, ap, f1, ap_class = ap_per_class(*stats, plot=config.TEST.PLOTS, save_dir=save_dir, names=names)
-        p, r, ap50, ap = p[:, 0], r[:, 0], ap[:, 0], ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
-        mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
+        p, r, ap, f1, ap_class = ap_per_class(*stats, plot=False, save_dir=save_dir, names=names)
+        p, r, ap50, ap70, ap75,ap = p[:, 0], r[:, 0], ap[:, 0], ap[:,4], ap[:,5],ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
+        mp, mr, map50, map70, map75, map = p.mean(), r.mean(), ap50.mean(), ap70.mean(),ap75.mean(),ap.mean()
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt = torch.zeros(1)
 
     # Print results
     pf = '%20s' + '%12.3g' * 6  # print format
-    #print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+    print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+    print(map70)
+    print(map75)
 
     # Print results per class
     if (verbose or (nc <= 20 and not training)) and nc > 1 and len(stats):
@@ -394,7 +426,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
     # Return results
     if not training:
-        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
+        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if config.TEST.SAVE_TXT else ''
         print(f"Results saved to {save_dir}{s}")
     model.float()  # for training
     maps = np.zeros(nc) + map
@@ -404,7 +436,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     segment_result = (acc_seg.avg,meanAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
 
     #print segmet_result
-    return segment_result,(mp, mr, map50, map, losses.avg), maps, t
+    return segment_result,(mp, mr, map50, map),losses.avg, maps, t
         
 
 

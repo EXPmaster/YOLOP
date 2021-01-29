@@ -3,7 +3,6 @@ import numpy as np
 import random
 import torch
 import torchvision.transforms as transforms
-from visualization import plot_img_and_mask
 from pathlib import Path
 from PIL import Image
 from torch.utils.data import Dataset
@@ -188,13 +187,7 @@ class AutoDriveDataset(Dataset):
         seg_label = torch.stack((seg2[0],seg1[0]),0)
         target = [labels_out, seg_label]
         img = self.transform(img)
-        # if self.cfg.TRAIN.PLOT:
-        #     if idx < 10:
-        #         img_test = Image.open(data["image"])
-        #         _, seg_mask = torch.max(seg_label, 0)
-        #         seg_mask = seg_mask > 0.5
-        #         # print(seg_mask.shape)
-        #         plot_img_and_mask(img_test, seg_mask, idx, )
+
         return img, target, data["image"], shapes
 
     def select_data(self, db):
