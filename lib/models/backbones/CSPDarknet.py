@@ -60,7 +60,7 @@ MCnet = [
 [ -1, Conv, [32, 16, 3, 1]],
 [ -1, BottleneckCSP, [16, 8, 1, False]],
 [ -1, Upsample, [None, 2, 'nearest']],
-[ -1, Conv, [8, 2, 3, 1]] #segmentation output
+[ -1, Conv, [8, 3, 3, 1]] #segmentation output
 ]
 
 

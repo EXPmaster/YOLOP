@@ -139,13 +139,6 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     verbose=False
     save_hybrid=False
     log_imgs,wandb = min(16,100), None
-    tf = transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.Resize((720, 1280)),
-                transforms.ToTensor()
-            ]
-        )
 
     nc = 13
     iouv = torch.linspace(0.5,0.95,10).to(device)     #iou vector for mAP@0.5:0.95
@@ -159,7 +152,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
     seen =  0 
     confusion_matrix = ConfusionMatrix(nc=model.nc) #detector confusion matrix
-    metric = SegmentationMetric(2) #segment confusion matrix    
+    metric = SegmentationMetric(3) #segment confusion matrix    
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
@@ -192,6 +185,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             pad_w, pad_h = shapes[0][1][1]
             pad_w = int(pad_w)
             pad_h = int(pad_h)
+            ratio = shapes[0][1][0][0]
             
             det_out, seg_out= model(img)
             inf_out,train_out = det_out
@@ -202,8 +196,6 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             _,gt=torch.max(target[1], 1)
             predict = predict[:, pad_h:height-pad_h, pad_w:width-pad_w]
             gt = gt[:, pad_h:height-pad_h, pad_w:width-pad_w]
-            # print(predict.shape)
-            # print(gt.shape)
             metric.reset()
             metric.addBatch(predict.cpu(), gt.cpu())
             acc = metric.pixelAccuracy()
@@ -230,17 +222,18 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             t_nms += time_synchronized() - t
 
             if config.TEST.PLOTS:
-                if batch_i == 0:
+                if batch_i < 12:
                     for i in range(test_batch_size):
-                        # img_path = Path(paths[i])
-                        # img_test = Image.open(img_path)
                         img_test = cv2.imread(paths[i])
-                        # img_test = cv2.resize(img_test, (int(256), int(144)), interpolation=cv2.INTER_AREA)
-                        seg_mask = predict[i].float()
-                        seg_mask = tf(seg_mask.cpu())
+                        seg_mask = seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
+                        seg_mask = torch.nn.functional.interpolate(seg_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        _, seg_mask = torch.max(seg_mask, 1)
+
+                        gt_mask = target[1][i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
+                        gt_mask = torch.nn.functional.interpolate(gt_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        _, gt_mask = torch.max(gt_mask, 1)
+
                         seg_mask = seg_mask.int().squeeze().cpu().numpy()
-                        gt_mask = gt[i].float()
-                        gt_mask = tf(gt_mask.cpu())
                         gt_mask = gt_mask.int().squeeze().cpu().numpy()
                         # seg_mask = seg_mask > 0.5
                         # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
@@ -426,7 +419,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
         maps[c] = ap[i]
 
     segment_result = (acc_seg.avg,meanAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
-
+    # print('mp:{},mr:{},map50:{},map:{}'.format(mp, mr, map50, map))
     #print segmet_result
     return segment_result,(mp, mr, map50, map),losses.avg, maps, t
         

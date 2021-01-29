@@ -271,6 +271,7 @@ def main():
                 logger, device, rank
             )
             fi = fitness(np.array(detect_results).reshape(1, -1))  #目标检测评价指标
+            detect_results = np.array(detect_results)
             msg = 'Epoch: [{0}]    Loss({loss:.3f})\n' \
                       'Segment: Acc({seg_acc:.3f})    mIOU({seg_miou:.3f})    FIOU ({seg_fiou:.3f})\n' \
                       'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})'.format(

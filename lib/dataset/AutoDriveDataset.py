@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
+# np.set_printoptions(threshold=np.inf)
 import random
 import torch
 import torchvision.transforms as transforms
+# from visualization import plot_img_and_mask,plot_one_box,show_seg_result
 from pathlib import Path
 from PIL import Image
 from torch.utils.data import Dataset
@@ -93,7 +95,8 @@ class AutoDriveDataset(Dataset):
         """
         data = self.db[idx]
         img = cv2.imread(data["image"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-        seg_label = cv2.imread(data["mask"], 0)
+        seg_label = cv2.imread(data["mask"])
+        # print(seg_label.shape)
         resized_shape = self.inputsize
         if isinstance(resized_shape, list):
             resized_shape = max(resized_shape)
@@ -176,15 +179,24 @@ class AutoDriveDataset(Dataset):
         # img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         # img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
+        # seg_label = np.ascontiguousarray(seg_label)
+        # if idx == 0:
+        #     print(seg_label[:,:,0])
+        _,seg0 = cv2.threshold(seg_label[:,:,0],128,255,cv2.THRESH_BINARY)
+        _,seg1 = cv2.threshold(seg_label[:,:,1],1,255,cv2.THRESH_BINARY)
+        _,seg2 = cv2.threshold(seg_label[:,:,2],1,255,cv2.THRESH_BINARY)
+        # # seg1[cutout_mask] = 0
+        # # seg2[cutout_mask] = 0
         
-        # cutout_mask = seg_label < 0
-        _,seg1 = cv2.threshold(seg_label,1,255,cv2.THRESH_BINARY)
-        _,seg2 = cv2.threshold(seg_label,1,255,cv2.THRESH_BINARY_INV)
-        # seg1[cutout_mask] = 0
-        # seg2[cutout_mask] = 0
+        # seg_label /= 255
+        seg0 = self.Tensor(seg0)
         seg1 = self.Tensor(seg1)
         seg2 = self.Tensor(seg2)
-        seg_label = torch.stack((seg2[0],seg1[0]),0)
+        seg_label = torch.stack((seg0[0],seg1[0],seg2[0]),0)
+        # _, gt_mask = torch.max(seg_label, 0)
+        # _ = show_seg_result(img, gt_mask, idx, 0, save_dir='debug', is_gt=True)
+        
+
         target = [labels_out, seg_label]
         img = self.transform(img)
 

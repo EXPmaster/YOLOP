@@ -25,7 +25,7 @@ _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
 _C.MODEL.PRETRAINED = '/home/zwt/DaChuang/runs/BddDataset/_2021-01-24-14-32/epoch-106.pth'
-_C.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
+_C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
@@ -86,7 +86,7 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
 _C.TRAIN.VAL_FREQ = 1
-_C.TRAIN.BATCH_SIZE_PER_GPU = 32
+_C.TRAIN.BATCH_SIZE_PER_GPU = 1
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
@@ -98,7 +98,7 @@ _C.TRAIN.PLOT = True
 
 # testing
 _C.TEST = CN(new_allowed=True)
-_C.TEST.BATCH_SIZE_PER_GPU = 32
+_C.TEST.BATCH_SIZE_PER_GPU = 1
 _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False
@@ -117,11 +117,11 @@ def update_config(cfg, args):
     if args.logDir:
         cfg.LOG_DIR = args.logDir
     
-    if args.conf_thres:
-        cfg.TEST.NMS_CONF_THRESHOLD = args.conf_thres
+    # if args.conf_thres:
+    #     cfg.TEST.NMS_CONF_THRESHOLD = args.conf_thres
 
-    if args.iou_thres:
-        cfg.TEST.NMS_IOU_THRESHOLD = args.iou_thres
+    # if args.iou_thres:
+    #     cfg.TEST.NMS_IOU_THRESHOLD = args.iou_thres
     
 
 

@@ -27,10 +27,12 @@ def show_seg_result(img, result, index, epoch, save_dir=None, palette=None,is_de
     # seg = result[0]
     if palette is None:
         palette = np.random.randint(
-                0, 255, size=(2, 3))
-    palette[0] = 0
+                0, 255, size=(3, 3))
+    palette[0] = [0, 0, 0]
+    palette[1] = [0, 255, 0]
+    palette[2] = [255, 0, 0]
     palette = np.array(palette)
-    assert palette.shape[0] == 2 # len(classes)
+    assert palette.shape[0] == 3 # len(classes)
     assert palette.shape[1] == 3
     assert len(palette.shape) == 2
     color_seg = np.zeros((result.shape[0], result.shape[1], 3), dtype=np.uint8)
@@ -41,6 +43,7 @@ def show_seg_result(img, result, index, epoch, save_dir=None, palette=None,is_de
 
     img = img * 0.5 + color_seg * 0.5
     img = img.astype(np.uint8)
+    img = cv2.resize(img, (1280,720), interpolation=cv2.INTER_LINEAR)
 
     if not is_demo:
         if not is_gt:
