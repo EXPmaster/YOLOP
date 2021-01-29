@@ -19,7 +19,7 @@ def check_anchor_order(m):
         m.anchor_grid[:] = m.anchor_grid.flip(0)
 
 
-def run_anchor(dataset, model, thr=4.0, imgsz=640):
+def run_anchor(logger,dataset, model, thr=4.0, imgsz=640):
     det = model.module.model[model.module.detector_index] if is_parallel(model) \
         else model.model[model.detector_index]
     anchor_num = det.na * det.nl
@@ -28,7 +28,7 @@ def run_anchor(dataset, model, thr=4.0, imgsz=640):
     det.anchor_grid[:] = new_anchors.clone().view_as(det.anchor_grid)  # for inference
     det.anchors[:] = new_anchors.clone().view_as(det.anchors) / det.stride.to(det.anchors.device).view(-1, 1, 1)  # loss
     check_anchor_order(det)
-    print(det.anchors)
+    logger.info(str(det.anchors))
     print('New anchors saved to model. Update model config to use these anchors in the future.')
 
 

@@ -6,11 +6,11 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.LOG_DIR = 'runs/'
-_C.GPUS = (0, )
+_C.GPUS = (0,)
 _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
-_C.AUTO_RESUME = True
+_C.AUTO_RESUME = False
 _C.NEED_AUTOANCHOR = False
 _C.DEBUG = False
 
@@ -24,7 +24,8 @@ _C.CUDNN.ENABLED = True
 _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.PRETRAINED = '/home/zwt/DaChuang/runs/BddDataset/_2021-01-24-14-32/epoch-106.pth'
+_C.MODEL.PRETRAINED = ''
+#_C.MODEL.PRETRAINED = '/workspace/wh/projects/DaChuang/runs/BddDataset/_2021-01-22-10-23/epoch-70.pth'
 _C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
@@ -92,8 +93,8 @@ _C.TRAIN.SHUFFLE = True
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
-_C.TRAIN.SEG_ONLY = True
-_C.TRAIN.FREEZE_SEG = False     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
+_C.TRAIN.SEG_ONLY = False
+_C.TRAIN.FREEZE_SEG = True     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
 _C.TRAIN.PLOT = True
 
 # testing

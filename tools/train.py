@@ -63,7 +63,8 @@ def parse_args():
 
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
     parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
-
+    parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
+    parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
     args = parser.parse_args()
 
     return args
@@ -247,7 +248,7 @@ def main():
     if rank in [-1, 0]:
         if cfg.NEED_AUTOANCHOR:
             print("begin check anchors")
-            run_anchor(train_dataset, model=model, thr=cfg.TRAIN.ANCHOR_THRESHOLD, imgsz=min(cfg.MODEL.IMAGE_SIZE))
+            run_anchor(logger,train_dataset, model=model, thr=cfg.TRAIN.ANCHOR_THRESHOLD, imgsz=min(cfg.MODEL.IMAGE_SIZE))
 
     # training
     num_warmup = max(round(cfg.TRAIN.WARMUP_EPOCHS * num_batch), 1000)
@@ -271,7 +272,7 @@ def main():
                 logger, device, rank
             )
             fi = fitness(np.array(detect_results).reshape(1, -1))  #目标检测评价指标
-            detect_results = np.array(detect_results)
+
             msg = 'Epoch: [{0}]    Loss({loss:.3f})\n' \
                       'Segment: Acc({seg_acc:.3f})    mIOU({seg_miou:.3f})    FIOU ({seg_fiou:.3f})\n' \
                       'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})'.format(

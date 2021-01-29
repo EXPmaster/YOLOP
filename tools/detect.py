@@ -86,11 +86,11 @@ def detect(cfg,opt):
         # Inference
         t1 = time_synchronized()
         #print(img.size())
-        print(img.shape)
+        #print(img.shape)
         det_out, seg_out= model(img)
-        inf_out,train_out = det_out
         t2 = time_synchronized()
         print("model inference time: " +str(t2-t1))
+        inf_out,train_out = det_out
         inf_time.update(t2-t1,img.size(0))
 
         # Apply NMS
@@ -147,7 +147,7 @@ def detect(cfg,opt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='/home/zwt/DaChuang/runs/BddDataset/_2021-01-24-14-32/epoch-80.pth', help='model.pth path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='/workspace/wh/projects/DaChuang/weights/epoch-106.pth', help='model.pth path(s)')
     parser.add_argument('--source', type=str, default='inference/images', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--img-size', type=int, default=512, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
