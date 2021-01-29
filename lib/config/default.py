@@ -6,7 +6,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.LOG_DIR = 'runs/'
-_C.GPUS = (0,)
+_C.GPUS = (0,1)
 _C.WORKERS = 4
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
@@ -26,7 +26,7 @@ _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
 _C.MODEL.PRETRAINED = ''
 #_C.MODEL.PRETRAINED = '/workspace/wh/projects/DaChuang/runs/BddDataset/_2021-01-22-10-23/epoch-70.pth'
-_C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
+_C.MODEL.IMAGE_SIZE = [640, 640]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
