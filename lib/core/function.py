@@ -140,7 +140,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     save_hybrid=False
     log_imgs,wandb = min(16,100), None
 
-    nc = 13
+    nc = 1
     iouv = torch.linspace(0.5,0.95,10).to(device)     #iou vector for mAP@0.5:0.95
     niou = iouv.numel()
 
@@ -152,7 +152,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
     seen =  0 
     confusion_matrix = ConfusionMatrix(nc=model.nc) #detector confusion matrix
-    metric = SegmentationMetric(3) #segment confusion matrix    
+    metric = SegmentationMetric(2) #segment confusion matrix    
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
@@ -362,7 +362,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     map75 = None
     if len(stats) and stats[0].any():
         p, r, ap, f1, ap_class = ap_per_class(*stats, plot=False, save_dir=save_dir, names=names)
-        p, r, ap50, ap70, ap75,ap = p[:, 0], r[:, 0], ap[:, 0], ap[:,4], ap[:,5],ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
+        ap50, ap70, ap75,ap = ap[:, 0], ap[:,4], ap[:,5],ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
         mp, mr, map50, map70, map75, map = p.mean(), r.mean(), ap50.mean(), ap70.mean(),ap75.mean(),ap.mean()
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:

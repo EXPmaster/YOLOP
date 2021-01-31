@@ -249,6 +249,11 @@ def main():
         if cfg.NEED_AUTOANCHOR:
             print("begin check anchors")
             run_anchor(logger,train_dataset, model=model, thr=cfg.TRAIN.ANCHOR_THRESHOLD, imgsz=min(cfg.MODEL.IMAGE_SIZE))
+        else:
+            print("anchors loaded successfully")
+            det = model.module.model[model.module.detector_index] if is_parallel(model) \
+                else model.model[model.detector_index]
+            logger.info(str(det.anchors))
 
     # training
     num_warmup = max(round(cfg.TRAIN.WARMUP_EPOCHS * num_batch), 1000)

@@ -60,7 +60,7 @@ MCnet = [
 [ -1, Conv, [32, 16, 3, 1]],
 [ -1, BottleneckCSP, [16, 8, 1, False]],
 [ -1, Upsample, [None, 2, 'nearest']],
-[ -1, Conv, [8, 3, 3, 1]] #segmentation output
+[ -1, Conv, [8, 2, 3, 1]] #segmentation output
 ]
 
 
@@ -68,7 +68,8 @@ class CSPDarknet(nn.Module):
     def __init__(self, block_cfg, **kwargs):
         super(CSPDarknet, self).__init__()
         layers, save= [], []
-        self.nc = 13    #output category num
+        # self.nc = 13    #output category num
+        self.nc = 1
         self.detector_index = -1
 
         # Build model

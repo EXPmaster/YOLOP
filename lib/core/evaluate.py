@@ -42,7 +42,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
     px, py = np.linspace(0, 1, 1000), []  # for plotting
     pr_score = 0.1  # score to evaluate P and R https://github.com/ultralytics/yolov3/issues/898
     s = [unique_classes.shape[0], tp.shape[1]]  # number class, number iou thresholds (i.e. 10 for mAP0.5...0.95)
-    ap, p, r = np.zeros(s), np.zeros(s), np.zeros(s)
+    ap, p, r = np.zeros(s), np.zeros((unique_classes.shape[0], 1000)), np.zeros((unique_classes.shape[0], 1000))
     for ci, c in enumerate(unique_classes):
         i = pred_cls == c
         n_l = (target_cls == c).sum()  # number of labels
@@ -57,11 +57,11 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
 
             # Recall
             recall = tpc / (n_l + 1e-16)  # recall curve
-            r[ci] = np.interp(-pr_score, -conf[i], recall[:, 0])  # r at pr_score, negative x, xp because xp decreases
+            r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # r at pr_score, negative x, xp because xp decreases
 
             # Precision
             precision = tpc / (tpc + fpc)  # precision curve
-            p[ci] = np.interp(-pr_score, -conf[i], precision[:, 0])  # p at pr_score
+            p[ci] = np.interp(-px, -conf[i], precision[:, 0], left=1)  # p at pr_score
 
             # AP from recall-precision curve
             for j in range(tp.shape[1]):
@@ -71,11 +71,12 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
 
     # Compute F1 score (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + 1e-16)
+    i = r.mean(0).argmax()
 
     if plot:
         plot_pr_curve(px, py, ap, save_dir, names)
 
-    return p, r, ap, f1, unique_classes.astype('int32')
+    return p[:, i], r[:, i], ap, f1, unique_classes.astype('int32')
 
 
 def compute_ap(recall, precision):
