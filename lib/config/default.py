@@ -7,8 +7,8 @@ _C = CN()
 
 _C.LOG_DIR = 'runs/'
 _C.GPUS = (0,)
-_C.WORKERS = 8
-_C.PIN_MEMORY = True
+_C.WORKERS = 4
+_C.PIN_MEMORY = False
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = False
 _C.NEED_AUTOANCHOR = True

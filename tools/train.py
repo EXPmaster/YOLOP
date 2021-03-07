@@ -203,16 +203,15 @@ def main():
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
 
-    with torch_distributed_zero_first(rank):
-        train_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
-            cfg=cfg,
-            is_train=True,
-            inputsize=cfg.MODEL.IMAGE_SIZE,
-            transform=transforms.Compose([
-                transforms.ToTensor(),
-                normalize,
-            ])
-        )
+    train_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
+        cfg=cfg,
+        is_train=True,
+        inputsize=cfg.MODEL.IMAGE_SIZE,
+        transform=transforms.Compose([
+            transforms.ToTensor(),
+            normalize,
+        ])
+    )
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if rank != -1 else None
 
     train_loader = DataLoaderX(
@@ -227,16 +226,15 @@ def main():
     num_batch = len(train_loader)
 
     if rank in [-1, 0]:
-        with torch_distributed_zero_first(rank):
-            valid_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
-                cfg=cfg,
-                is_train=False,
-                inputsize=cfg.MODEL.IMAGE_SIZE,
-                transform=transforms.Compose([
-                    transforms.ToTensor(),
-                    normalize,
-                ])
-            )
+        valid_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
+            cfg=cfg,
+            is_train=False,
+            inputsize=cfg.MODEL.IMAGE_SIZE,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                normalize,
+            ])
+        )
 
         valid_loader = DataLoaderX(
             valid_dataset,

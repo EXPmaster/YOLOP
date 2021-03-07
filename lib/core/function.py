@@ -49,8 +49,10 @@ def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_bat
     model.train()
     print("sssss")
     start = time.time()
-    for i, (img, target, paths, shapes) in enumerate(train_loader):
+    for i, (input, target, paths, shapes) in enumerate(train_loader):
         print("begin")
+        intermediate = time.time()
+        print('tims:{}'.format(intermediate-start))
         num_iter = i + num_batch * (epoch - 1)
 
         if num_iter < num_warmup:

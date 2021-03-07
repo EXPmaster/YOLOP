@@ -95,13 +95,14 @@ class AutoDriveDataset(Dataset):
         cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
         cv2.warpAffine
         """
+        print("here")
         data = self.db[idx]
         img = cv2.imread(data["image"], cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         seg_label = cv2.imread(data["mask"], 0)
         lane_label = cv2.imread(data["lane"], 0)
         print(img.shape)
-        print(seg_label.shape)
-        print(lane_label.shape)
+        # print(seg_label.shape)
+        # print(lane_label.shape)
         # print(seg_label.shape)
         resized_shape = self.inputsize
         if isinstance(resized_shape, list):
