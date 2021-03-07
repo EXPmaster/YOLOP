@@ -13,3 +13,4 @@ inference/
 *.pth
 *.pt
 *.tar
+*.tar.gz

@@ -118,7 +118,7 @@ def main():
         dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
     
     print("load model to device")
-    model = get_net(cfg)
+    model = get_net(cfg).to(device)
     # print("load finished")
     #model = model.to(device)
     # print("finish build model")
@@ -133,7 +133,8 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-    freeze_parameter = ['model.{}'.format(x) for x in range(25, 49)]
+    stage1_unfreeze_parameter = ['model.{}'.format(x) for x in range(25, 49)]
+    stage2_unfreeze_parameter = ['model.{}'.format(x) for x in range(0, 25)]
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
     #     last_epoch=last_epoch
@@ -171,22 +172,31 @@ def main():
             optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 cfg.MODEL.PRETRAINED, checkpoint['epoch']))
+        if cfg.TRAIN.DET_ONLY:  #stage_1
+            logger.info('freeze seg-brach...')
+            # print(model.named_parameters)
+            for k, v in model.named_parameters():
+                v.requires_grad = False  # train all layers
+                if any(x in k for x in stage1_unfreeze_parameter):
+                    print('freezing %s' % k)
+                    v.requires_grad = True
 
-        if cfg.TRAIN.SEG_ONLY:
+        if cfg.TRAIN.SEG_ONLY:  #stage_2
             logger.info('freeze backbone...')
             # print(model.named_parameters)
             for k, v in model.named_parameters():
                 v.requires_grad = False  # train all layers
-                if any(x in k for x in freeze_parameter):
+                if any(x in k for x in stage2_unfreeze_parameter):
                     print('freezing %s' % k)
                     v.requires_grad = True
+        
             # optimizer = get_optimizer(cfg, model)
     
 
 
     # print('rank = {}'.format(rank))
-    """if rank == -1 and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()"""
+    if rank == -1 and torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
     # # DDP mode
     if rank != -1:
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank,find_unused_parameters=True)
@@ -272,7 +282,7 @@ def main():
         # evaluate on validation set
         if (epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH) and rank in [-1, 0]:
             # print('validate')
-            da_segment_results,detect_results, total_loss,maps, times = validate(
+            ll_segment_results,da_segment_results,detect_results, total_loss,maps, times = validate(
                 epoch,cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank

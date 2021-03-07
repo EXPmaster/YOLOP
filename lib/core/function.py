@@ -45,14 +45,11 @@ def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_bat
     losses = AverageMeter()
 
     # switch to train mode
-    print("ssss")
     model.train()
-    print("sssss")
     start = time.time()
     for i, (input, target, paths, shapes) in enumerate(train_loader):
-        print("begin")
         intermediate = time.time()
-        print('tims:{}'.format(intermediate-start))
+        #print('tims:{}'.format(intermediate-start))
         num_iter = i + num_batch * (epoch - 1)
 
         if num_iter < num_warmup:
@@ -172,11 +169,11 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     losses = AverageMeter()
 
     da_acc_seg = AverageMeter()
-    da_IOU_seg = AverageMeter()
+    da_IoU_seg = AverageMeter()
     da_mIoU_seg = AverageMeter()
 
     ll_acc_seg = AverageMeter()
-    ll_IOU_seg = AverageMeter()
+    ll_IoU_seg = AverageMeter()
     ll_mIoU_seg = AverageMeter()
 
     T_inf = AverageMeter()
@@ -204,7 +201,6 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             t = time_synchronized()
             det_out, da_seg_out, ll_seg_out= model(img)
             t_inf = time_synchronized() - t
-            logger.info(str(t_inf) +"  " +str(img.size(0)))
             if batch_i > 0:
                 T_inf.update(t_inf,img.size(0))
 
@@ -239,7 +235,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             ll_mIoU = ll_metric.meanIntersectionOverUnion()
 
             ll_acc_seg.update(ll_acc,img.size(0))
-            ll_IOU_seg.update(ll_IoU,img.size(0))
+            ll_IoU_seg.update(ll_IoU,img.size(0))
             ll_mIoU_seg.update(ll_mIoU,img.size(0))
             
             total_loss, head_losses = criterion((train_out,da_seg_out, ll_seg_out), target, shapes,model)   #Compute loss
@@ -253,7 +249,6 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6)
             #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
             t_nms = time_synchronized() - t
-            logger.info(str(t_nms))
             if batch_i > 0:
                 T_nms.update(t_nms,img.size(0))
 
@@ -477,8 +472,11 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     for i, c in enumerate(ap_class):
         maps[c] = ap[i]
 
-    da_segment_result = (da_acc_seg.avg,da_IOU_seg.avg,da_mIoU_seg.avg)
-    ll_segment_result = (ll_acc_seg.avg,ll_IOU_seg.avg,ll_mIoU_seg.avg)
+    da_segment_result = (da_acc_seg.avg,da_IoU_seg.avg,da_mIoU_seg.avg)
+    ll_segment_result = (ll_acc_seg.avg,ll_IoU_seg.avg,ll_mIoU_seg.avg)
+
+    print(da_segment_result)
+    print(ll_segment_result)
     detect_result = np.asarray([mp, mr, map50, map])
     # print('mp:{},mr:{},map50:{},map:{}'.format(mp, mr, map50, map))
     #print segmet_result

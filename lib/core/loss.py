@@ -118,7 +118,7 @@ class MultiHeadLoss(nn.Module):
         lseg_ll = BCEseg(lane_line_seg_predicts, lane_line_seg_targets)
 
         metric = SegmentationMetric(2)
-        nb, _, height, width = target[1].shape
+        nb, _, height, width = targets[1].shape
         pad_w, pad_h = shapes[0][1][1]
         pad_w = int(pad_w)
         pad_h = int(pad_h)
@@ -129,7 +129,7 @@ class MultiHeadLoss(nn.Module):
         metric.reset()
         metric.addBatch(lane_line_pred.cpu(), lane_line_gt.cpu())
         IoU = metric.IntersectionOverUnion()
-        liou_ll = 1 - IoU[1]
+        liou_ll = 1 - IoU
 
         s = 3 / no  # output count scaling
         lcls *= cfg.LOSS.CLS_GAIN * s * self.lambdas[0]
@@ -141,10 +141,10 @@ class MultiHeadLoss(nn.Module):
         liou_ll *= cfg.LOSS.LL_IOU_GAIN * self.lambdas[5]
 
         # bs = tobj.shape[0]  # batch size
-        if cfg.TRAIN.FREEZE_SEG:
+        """if cfg.TRAIN.FREEZE_SEG:
             lseg_da = 0 * lseg_da
             lseg_ll = 0 * lseg_ll
-            liou_ll = 0 * liou_ll
+            liou_ll = 0 * liou_ll"""
 
         loss = lbox + lobj + lcls + lseg_da + lseg_ll + liou_ll
         # loss = lseg
