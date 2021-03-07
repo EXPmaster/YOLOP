@@ -31,9 +31,11 @@ def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_bat
     outputs(2,)
     output[0] len:3, [1,3,32,32,85], [1,3,16,16,85], [1,3,8,8,85]
     output[1] len:1, [2,256,256]
+    output[2] len:1, [2,256,256]
     target(2,)
     target[0] [1,n,5]
     target[1] [2,256,256]
+    target[2] [2,256,256]
     Returns:
     None
 
@@ -43,9 +45,12 @@ def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_bat
     losses = AverageMeter()
 
     # switch to train mode
+    print("ssss")
     model.train()
+    print("sssss")
     start = time.time()
-    for i, (input, target, _, _) in enumerate(train_loader):
+    for i, (img, target, paths, shapes) in enumerate(train_loader):
+        print("begin")
         num_iter = i + num_batch * (epoch - 1)
 
         if num_iter < num_warmup:
@@ -69,7 +74,7 @@ def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_bat
             target = assign_target
         with amp.autocast(enabled=device.type != 'cpu'):
             outputs = model(input)
-            total_loss, head_losses = criterion(outputs, target, model)
+            total_loss, head_losses = criterion(outputs, target, shapes,model)
 
         # compute gradient and do update step
         optimizer.zero_grad()
@@ -152,7 +157,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
     seen =  0 
     confusion_matrix = ConfusionMatrix(nc=model.nc) #detector confusion matrix
-    metric = SegmentationMetric(2) #segment confusion matrix    
+    da_metric = SegmentationMetric(2) #segment confusion matrix    
+    ll_metric = SegmentationMetric(2) #segment confusion matrix
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
@@ -162,10 +168,17 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     p, r, f1, mp, mr, map50, map, t_inf, t_nms = 0., 0., 0., 0., 0., 0., 0., 0., 0.
     
     losses = AverageMeter()
-    acc_seg = AverageMeter()
-    meanAcc_seg = AverageMeter()
-    mIoU_seg = AverageMeter()
-    FWIoU_seg = AverageMeter()
+
+    da_acc_seg = AverageMeter()
+    da_IOU_seg = AverageMeter()
+    da_mIoU_seg = AverageMeter()
+
+    ll_acc_seg = AverageMeter()
+    ll_IOU_seg = AverageMeter()
+    ll_mIoU_seg = AverageMeter()
+
+    T_inf = AverageMeter()
+    T_nms = AverageMeter()
 
     # switch to train mode
     model.eval()
@@ -181,35 +194,53 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             nb, _, height, width = img.shape    #batch size, channel, height, width
 
         with torch.no_grad():
-            t = time_synchronized()
             pad_w, pad_h = shapes[0][1][1]
             pad_w = int(pad_w)
             pad_h = int(pad_h)
             ratio = shapes[0][1][0][0]
-            
-            det_out, seg_out= model(img)
+
+            t = time_synchronized()
+            det_out, da_seg_out, ll_seg_out= model(img)
+            t_inf = time_synchronized() - t
+            logger.info(str(t_inf) +"  " +str(img.size(0)))
+            if batch_i > 0:
+                T_inf.update(t_inf,img.size(0))
+
             inf_out,train_out = det_out
-            t_inf += time_synchronized() - t
 
-            #segment evaluation
-            _,predict=torch.max(seg_out, 1)
-            _,gt=torch.max(target[1], 1)
-            predict = predict[:, pad_h:height-pad_h, pad_w:width-pad_w]
-            gt = gt[:, pad_h:height-pad_h, pad_w:width-pad_w]
-            metric.reset()
-            metric.addBatch(predict.cpu(), gt.cpu())
-            acc = metric.pixelAccuracy()
-            meanAcc = metric.meanPixelAccuracy()
-            mIoU = metric.meanIntersectionOverUnion()
-            FWIoU = metric.Frequency_Weighted_Intersection_over_Union()
+            #driving area segment evaluation
+            _,da_predict=torch.max(da_seg_out, 1)
+            _,da_gt=torch.max(target[1], 1)
+            da_predict = da_predict[:, pad_h:height-pad_h, pad_w:width-pad_w]
+            da_gt = da_gt[:, pad_h:height-pad_h, pad_w:width-pad_w]
 
-            acc_seg.update(acc,img.size(0))
-            meanAcc_seg.update(meanAcc,img.size(0))
-            mIoU_seg.update(mIoU,img.size(0))
-            FWIoU_seg.update(FWIoU,img.size(0))
+            da_metric.reset()
+            da_metric.addBatch(da_predict.cpu(), da_gt.cpu())
+            da_acc = da_metric.pixelAccuracy()
+            da_IoU = da_metric.IntersectionOverUnion()
+            da_mIoU = da_metric.meanIntersectionOverUnion()
 
+            da_acc_seg.update(da_acc,img.size(0))
+            da_IoU_seg.update(da_IoU,img.size(0))
+            da_mIoU_seg.update(da_mIoU,img.size(0))
+
+            #lane line segment evaluation
+            _,ll_predict=torch.max(ll_seg_out, 1)
+            _,ll_gt=torch.max(target[2], 1)
+            ll_predict = ll_predict[:, pad_h:height-pad_h, pad_w:width-pad_w]
+            ll_gt = ll_gt[:, pad_h:height-pad_h, pad_w:width-pad_w]
+
+            ll_metric.reset()
+            ll_metric.addBatch(ll_predict.cpu(), ll_gt.cpu())
+            ll_acc = ll_metric.pixelAccuracy()
+            ll_IoU = ll_metric.IntersectionOverUnion()
+            ll_mIoU = ll_metric.meanIntersectionOverUnion()
+
+            ll_acc_seg.update(ll_acc,img.size(0))
+            ll_IOU_seg.update(ll_IoU,img.size(0))
+            ll_mIoU_seg.update(ll_mIoU,img.size(0))
             
-            total_loss, head_losses = criterion((train_out,seg_out), target, model)   #Compute loss
+            total_loss, head_losses = criterion((train_out,da_seg_out, ll_seg_out), target, shapes,model)   #Compute loss
             losses.update(total_loss.item(), img.size(0))
 
             #NMS
@@ -219,26 +250,45 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             output = non_max_suppression(inf_out, conf_thres= config.TEST.NMS_CONF_THRESHOLD, iou_thres=config.TEST.NMS_IOU_THRESHOLD, labels=lb)
             #output = non_max_suppression(inf_out, conf_thres=0.001, iou_thres=0.6)
             #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
-            t_nms += time_synchronized() - t
+            t_nms = time_synchronized() - t
+            logger.info(str(t_nms))
+            if batch_i > 0:
+                T_nms.update(t_nms,img.size(0))
 
             if config.TEST.PLOTS:
                 if batch_i == 0:
                     for i in range(test_batch_size):
                         img_test = cv2.imread(paths[i])
-                        seg_mask = seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
-                        seg_mask = torch.nn.functional.interpolate(seg_mask, scale_factor=int(1/ratio), mode='bilinear')
-                        _, seg_mask = torch.max(seg_mask, 1)
+                        da_seg_mask = da_seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
+                        da_seg_mask = torch.nn.functional.interpolate(da_seg_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        _, da_seg_mask = torch.max(da_seg_mask, 1)
 
-                        gt_mask = target[1][i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
-                        gt_mask = torch.nn.functional.interpolate(gt_mask, scale_factor=int(1/ratio), mode='bilinear')
-                        _, gt_mask = torch.max(gt_mask, 1)
+                        da_gt_mask = target[1][i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
+                        da_gt_mask = torch.nn.functional.interpolate(da_gt_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        _, da_gt_mask = torch.max(da_gt_mask, 1)
 
-                        seg_mask = seg_mask.int().squeeze().cpu().numpy()
-                        gt_mask = gt_mask.int().squeeze().cpu().numpy()
+                        da_seg_mask = da_seg_mask.int().squeeze().cpu().numpy()
+                        da_gt_mask = da_gt_mask.int().squeeze().cpu().numpy()
                         # seg_mask = seg_mask > 0.5
                         # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
-                        _ = show_seg_result(img_test, seg_mask, i,epoch,save_dir)
-                        _ = show_seg_result(img_test, gt_mask, i, epoch, save_dir, is_gt=True)
+                        _ = show_seg_result(img_test, da_seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_test, da_gt_mask, i, epoch, save_dir, is_gt=True)
+
+                        img_ll = cv2.imread(paths[i])
+                        ll_seg_mask = ll_seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
+                        ll_seg_mask = torch.nn.functional.interpolate(ll_seg_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        _, ll_seg_mask = torch.max(ll_seg_mask, 1)
+
+                        ll_gt_mask = target[2][i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
+                        ll_gt_mask = torch.nn.functional.interpolate(ll_gt_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        _, ll_gt_mask = torch.max(ll_gt_mask, 1)
+
+                        ll_seg_mask = ll_seg_mask.int().squeeze().cpu().numpy()
+                        ll_gt_mask = ll_gt_mask.int().squeeze().cpu().numpy()
+                        # seg_mask = seg_mask > 0.5
+                        # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_ll, ll_seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_ll, ll_gt_mask, i, epoch, save_dir, is_gt=True)
 
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()
@@ -371,8 +421,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # Print results
     pf = '%20s' + '%12.3g' * 6  # print format
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
-    print(map70)
-    print(map75)
+    #print(map70)
+    #print(map75)
 
     # Print results per class
     if (verbose or (nc <= 20 and not training)) and nc > 1 and len(stats):
@@ -425,11 +475,13 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     for i, c in enumerate(ap_class):
         maps[c] = ap[i]
 
-    segment_result = (acc_seg.avg,meanAcc_seg.avg,mIoU_seg.avg,FWIoU_seg.avg)
+    da_segment_result = (da_acc_seg.avg,da_IOU_seg.avg,da_mIoU_seg.avg)
+    ll_segment_result = (ll_acc_seg.avg,ll_IOU_seg.avg,ll_mIoU_seg.avg)
     detect_result = np.asarray([mp, mr, map50, map])
     # print('mp:{},mr:{},map50:{},map:{}'.format(mp, mr, map50, map))
     #print segmet_result
-    return segment_result,detect_result,losses.avg, maps, t
+    t = [T_inf.avg, T_nms.avg]
+    return da_segment_result, ll_segment_result, detect_result, losses.avg, maps, t
         
 
 

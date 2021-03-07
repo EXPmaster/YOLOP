@@ -29,10 +29,11 @@ class BddDataset(AutoDriveDataset):
         print('building database...')
         gt_db = []
         height, width = self.shapes
-        for mask in tqdm(list(self.mask_list)):
+        for mask in tqdm(list(self.mask_list)[:64]):
             mask_path = str(mask)
             label_path = mask_path.replace(str(self.mask_root), str(self.label_root)).replace(".png", ".json")
             image_path = mask_path.replace(str(self.mask_root), str(self.img_root)).replace(".png", ".jpg")
+            lane_path = mask_path.replace(str(self.mask_root), str(self.lane_root))
             with open(label_path, 'r') as f:
                 label = json.load(f)
             data = label['frames'][0]['objects']
@@ -59,7 +60,8 @@ class BddDataset(AutoDriveDataset):
             rec = [{
                 'image': image_path,
                 'label': gt,
-                'mask': mask_path
+                'mask': mask_path,
+                'lane': lane_path
             }]
 
             gt_db += rec

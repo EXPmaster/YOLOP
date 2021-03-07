@@ -6,13 +6,13 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.LOG_DIR = 'runs/'
-_C.GPUS = (0,1)
-_C.WORKERS = 4
+_C.GPUS = (0,)
+_C.WORKERS = 8
 _C.PIN_MEMORY = True
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = False
-_C.NEED_AUTOANCHOR = False
-_C.DEBUG = False
+_C.NEED_AUTOANCHOR = True
+_C.DEBUG = True
 
 # Cudnn related params
 _C.CUDNN = CN()
@@ -24,9 +24,10 @@ _C.CUDNN.ENABLED = True
 _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.PRETRAINED = '/home/zwt/wd/DaChuang/weights/epoch-29.pth'
-#_C.MODEL.PRETRAINED = '/workspace/wh/projects/DaChuang/runs/BddDataset/_2021-01-22-10-23/epoch-70.pth'
-_C.MODEL.IMAGE_SIZE = [640, 640]  # width * height, ex: 192 * 256
+# _C.MODEL.PRETRAINED = "/home/zwt/wd/DaChuang/runs/BddDataset/_2021-02-13-10-31/epoch-97.pth"
+_C.MODEL.PRETRAINED = ""
+#_C.MODEL.PRETRAINED = '/home/zwt/wd/DaChuang/runs/BddDataset/_2021-01-31-23-16/epoch-84.pth'
+_C.MODEL.IMAGE_SIZE = [320, 320]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
@@ -40,14 +41,16 @@ _C.LOSS.SEG_POS_WEIGHT = 1.0  # segmentation loss positive weights
 _C.LOSS.BOX_GAIN = 0.05  # box loss gain
 _C.LOSS.CLS_GAIN = 0.5  # classification loss gain
 _C.LOSS.OBJ_GAIN = 1.0  # object loss gain
-_C.LOSS.SEG_GAIN = 1.0  # segmentation loss gain
-
+_C.LOSS.DA_SEG_GAIN = 1.0  # driving area segmentation loss gain
+_C.LOSS.LL_SEG_GAIN = 1.0  # lane line segmentation loss gain
+_C.LOSS.LL_IOU_GAIN = 1.0  # lane line iou loss gain
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
 _C.DATASET.DATAROOT = '/home/zwt/bdd/bdd100k/images/100k'
 _C.DATASET.LABELROOT = '/home/zwt/bdd/bdd100k/labels/100k'
 _C.DATASET.MASKROOT = '/home/zwt/bdd/bdd_seg_gt'
+_C.DATASET.LANEROOT = '/home/zwt/bdd/bdd_lane_gt'
 _C.DATASET.DATASET = 'BddDataset'
 _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'val'
@@ -87,19 +90,19 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
 _C.TRAIN.VAL_FREQ = 1
-_C.TRAIN.BATCH_SIZE_PER_GPU = 24
+_C.TRAIN.BATCH_SIZE_PER_GPU = 4
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
 _C.TRAIN.SEG_ONLY = False
-_C.TRAIN.FREEZE_SEG = True     #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
+_C.TRAIN.FREEZE_SEG = True    #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]
 _C.TRAIN.PLOT = True
 
 # testing
 _C.TEST = CN(new_allowed=True)
-_C.TEST.BATCH_SIZE_PER_GPU = 24
+_C.TEST.BATCH_SIZE_PER_GPU = 4
 _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False

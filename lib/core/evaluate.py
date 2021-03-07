@@ -217,6 +217,13 @@ class SegmentationMetric(object):
         IoU[np.isnan(IoU)] = 0
         mIoU = np.nanmean(IoU)
         return mIoU
+    
+    def IntersectionOverUnion(self):
+        intersection = np.diag(self.confusionMatrix)
+        union = np.sum(self.confusionMatrix, axis=1) + np.sum(self.confusionMatrix, axis=0) - np.diag(self.confusionMatrix)
+        IoU = intersection / union
+        IoU[np.isnan(IoU)] = 0
+        return IoU
 
     def genConfusionMatrix(self, imgPredict, imgLabel):
         # remove classes from unlabeled pixels in gt image and predict
@@ -243,6 +250,9 @@ class SegmentationMetric(object):
 
     def reset(self):
         self.confusionMatrix = np.zeros((self.numClass, self.numClass))
+
+
+
 
 
 # Plots ----------------------------------------------------------------------------------------------------------------

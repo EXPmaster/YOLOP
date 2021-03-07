@@ -80,6 +80,7 @@ def main():
     global_rank = int(os.environ['RANK']) if 'RANK' in os.environ else -1
 
     rank = global_rank
+    #print(rank)
     # TODO: handle distributed training logger
     # set the logger, tb_log_dir means tensorboard logdir
 
@@ -116,8 +117,11 @@ def main():
         device = torch.device('cuda', args.local_rank)
         dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
     
-    model = get_net(cfg).to(device)
-    print("finish build model")
+    print("load model to device")
+    model = get_net(cfg)
+    # print("load finished")
+    #model = model.to(device)
+    # print("finish build model")
     
 
     # define loss function (criterion) and optimizer
@@ -129,7 +133,7 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-    freeze_parameter = ['model.{}'.format(x) for x in range(25, 35)]
+    freeze_parameter = ['model.{}'.format(x) for x in range(25, 49)]
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
     #     last_epoch=last_epoch
@@ -181,9 +185,8 @@ def main():
 
 
     # print('rank = {}'.format(rank))
-    if rank == -1 and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
-    
+    """if rank == -1 and torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()"""
     # # DDP mode
     if rank != -1:
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank,find_unused_parameters=True)
@@ -271,7 +274,7 @@ def main():
         # evaluate on validation set
         if (epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH) and rank in [-1, 0]:
             # print('validate')
-            segment_results,detect_results, total_loss,maps, times = validate(
+            da_segment_results,detect_results, total_loss,maps, times = validate(
                 epoch,cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank
@@ -279,10 +282,14 @@ def main():
             fi = fitness(np.array(detect_results).reshape(1, -1))  #目标检测评价指标
 
             msg = 'Epoch: [{0}]    Loss({loss:.3f})\n' \
-                      'Segment: Acc({seg_acc:.3f})    mIOU({seg_miou:.3f})    FIOU ({seg_fiou:.3f})\n' \
-                      'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})'.format(
-                          epoch,  loss=total_loss, seg_acc=segment_results[0],seg_miou=segment_results[2],seg_fiou=segment_results[3],
-                          p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3])
+                      'Driving area Segment: Acc({da_seg_acc:.3f})    IOU ({da_seg_iou:.3f})    mIOU({da_seg_miou:.3f})\n' \
+                      'Lane line Segment: Acc({ll_seg_acc:.3f})    IOU ({ll_seg_iou:.3f})  mIOU({ll_seg_miou:.3f})\n' \
+                      'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})\n'\
+                      'Time: inference({t_inf:.4f}s/frame)  nms({t_nms:.4f}s/frame)'.format(
+                          epoch,  loss=total_loss, da_seg_acc=da_segment_results[0],da_seg_iou=da_segment_results[1],da_seg_miou=da_segment_results[2],
+                          ll_seg_acc=ll_segment_results[0],ll_seg_iou=ll_segment_results[1],ll_seg_miou=ll_segment_results[2],
+                          p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3],
+                          t_inf=times[0], t_nms=times[1])
             logger.info(msg)
 
             # if perf_indicator >= best_perf:

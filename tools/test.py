@@ -36,7 +36,7 @@ def parse_args():
                         help='log directory',
                         type=str,
                         default='runs/')
-    parser.add_argument('--weights', nargs='+', type=str, default='/workspace/wh/projects/DaChuang/weights/epoch-106.pth', help='model.pth path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='/home/zwt/wd/DaChuang/runs/BddDataset/_2021-02-01-23-47/epoch-103.pth', help='model.pth path(s)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
     args = parser.parse_args()
@@ -121,12 +121,14 @@ def main():
         final_output_dir, tb_log_dir, writer_dict,
         logger, device
     )
-    fi = fitness(np.array(detect_results).reshape(1, -1))  #目标检测评价指标
+    fi = fitness(np.array(detect_results).reshape(1, -1))
     msg =   'Test:    Loss({loss:.3f})\n' \
             'Segment: Acc({seg_acc:.3f})    mIOU({seg_miou:.3f})    FIOU ({seg_fiou:.3f})\n' \
-            'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})'.format(
+            'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})\n'\
+            'Time: inference({t_inf:.4f}s/frame)  nms({t_nms:.4f}s/frame)'.format(
                     loss=total_loss, seg_acc=segment_results[0],seg_miou=segment_results[2],seg_fiou=segment_results[3],
-                    p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3])
+                    p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3],
+                    t_inf=times[0], t_nms=times[1])
     logger.info(msg)
     print("test finish")
 

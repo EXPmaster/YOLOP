@@ -54,9 +54,10 @@ def detect(cfg,opt):
     half = device.type != 'cpu'  # half precision only supported on CUDA
 
     # Load model
-    model = get_net(cfg).to(device)
+    model = get_net(cfg)
     checkpoint = torch.load(opt.weights)
     model.load_state_dict(checkpoint['state_dict'])
+    model = model.to(device)
     if half:
         model.half()  # to FP16
 
@@ -147,9 +148,9 @@ def detect(cfg,opt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='/home/zwt/wd/DaChuang/runs/BddDataset/_2021-01-31-16-41/epoch-34.pth', help='model.pth path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='/home/zwt/wd/DaChuang/runs/BddDataset/_2021-02-01-23-47/epoch-103.pth', help='model.pth path(s)')
     parser.add_argument('--source', type=str, default='inference/images', help='source')  # file/folder, 0 for webcam
-    parser.add_argument('--img-size', type=int, default=1280, help='inference size (pixels)')
+    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')

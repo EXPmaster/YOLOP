@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch
 from .general import bbox_iou
 from .postprocess import build_targets
-
+from lib.core.evaluate import SegmentationMetric
 
 class MultiHeadLoss(nn.Module):
     """
@@ -16,16 +16,16 @@ class MultiHeadLoss(nn.Module):
         - lambdas: (list) + IoU loss, 各个loss的权重
         """
         super().__init__()
-        # lambdas: [cls, obj, iou, seg]
+        # lambdas: [cls, obj, iou, la_seg, ll_seg, ll_iou]
         if not lambdas:
-            lambdas = [1.0 for _ in range(len(losses) + 1)]
+            lambdas = [1.0 for _ in range(len(losses) + 3)]
         assert all(lam >= 0.0 for lam in lambdas)
 
         self.losses = nn.ModuleList(losses)
         self.lambdas = lambdas
         self.cfg = cfg
 
-    def forward(self, head_fields, head_targets, model):
+    def forward(self, head_fields, head_targets, shapes, model):
         """
         Inputs:
         - head_fields: (list)各个head输出的数据
@@ -49,16 +49,16 @@ class MultiHeadLoss(nn.Module):
         #                for lam, l in zip(self.lambdas, head_losses)
         #                if l is not None]
         # total_loss = sum(loss_values) if loss_values else None
-        total_loss, head_losses = self._forward_impl(head_fields, head_targets, model)
+        total_loss, head_losses = self._forward_impl(head_fields, head_targets, shapes, model)
 
         return total_loss, head_losses
 
-    def _forward_impl(self, predictions, targets, model):
+    def _forward_impl(self, predictions, targets, shapes, model):
         """
 
         Args:
-            predictions: predicts of [det_head1, det_head2, det_head3, seg_head]
-            targets: gts [det_targets, segment_targets]
+            predictions: predicts of [[det_head1, det_head2, det_head3], drive_area_seg_head, lane_line_seg_head]
+            targets: gts [det_targets, segment_targets, lane_targets]
             model:
 
         Returns:
@@ -109,27 +109,47 @@ class MultiHeadLoss(nn.Module):
 
             lobj += BCEobj(pi[..., 4], tobj) * balance[i]  # obj loss
 
-        seg_predicts = predictions[-1].view(-1)
-        seg_targets = targets[-1].view(-1)
-        lseg = BCEseg(seg_predicts, seg_targets)
+        drive_area_seg_predicts = predictions[1].view(-1)
+        drive_area_seg_targets = targets[1].view(-1)
+        lseg_da = BCEseg(drive_area_seg_predicts, drive_area_seg_targets)
+
+        lane_line_seg_predicts = predictions[2].view(-1)
+        lane_line_seg_targets = targets[2].view(-1)
+        lseg_ll = BCEseg(lane_line_seg_predicts, lane_line_seg_targets)
+
+        metric = SegmentationMetric(2)
+        nb, _, height, width = target[1].shape
+        pad_w, pad_h = shapes[0][1][1]
+        pad_w = int(pad_w)
+        pad_h = int(pad_h)
+        _,lane_line_pred=torch.max(predictions[2], 1)
+        _,lane_line_gt=torch.max(targets[2], 1)
+        lane_line_pred = lane_line_pred[:, pad_h:height-pad_h, pad_w:width-pad_w]
+        lane_line_gt = lane_line_gt[:, pad_h:height-pad_h, pad_w:width-pad_w]
+        metric.reset()
+        metric.addBatch(lane_line_pred.cpu(), lane_line_gt.cpu())
+        IoU = metric.IntersectionOverUnion()
+        liou_ll = 1 - IoU[1]
 
         s = 3 / no  # output count scaling
         lcls *= cfg.LOSS.CLS_GAIN * s * self.lambdas[0]
         lobj *= cfg.LOSS.OBJ_GAIN * s * (1.4 if no == 4 else 1.) * self.lambdas[1]
         lbox *= cfg.LOSS.BOX_GAIN * s * self.lambdas[2]
-        lseg *= cfg.LOSS.SEG_GAIN * self.lambdas[3]
+
+        lseg_da *= cfg.LOSS.DA_SEG_GAIN * self.lambdas[3]
+        lseg_ll *= cfg.LOSS.LL_SEG_GAIN * self.lambdas[4]
+        liou_ll *= cfg.LOSS.LL_IOU_GAIN * self.lambdas[5]
 
         # bs = tobj.shape[0]  # batch size
         if cfg.TRAIN.FREEZE_SEG:
-            lseg = 0 * lseg
-            # lbox = 0 * lbox
-            # lobj = 0 * lobj
-            # lcls = 0 * lcls
+            lseg_da = 0 * lseg_da
+            lseg_ll = 0 * lseg_ll
+            liou_ll = 0 * liou_ll
 
-        loss = lbox + lobj + lcls + lseg
+        loss = lbox + lobj + lcls + lseg_da + lseg_ll + liou_ll
         # loss = lseg
         # return loss * bs, torch.cat((lbox, lobj, lcls, loss)).detach()
-        return loss, (lbox.item(), lobj.item(), lcls.item(), lseg.item(), loss.item())
+        return loss, (lbox.item(), lobj.item(), lcls.item(), lseg_da.item(), lseg_ll.item(), liou_ll.item(), loss.item())
 
 
 def get_loss(cfg, device):

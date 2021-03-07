@@ -20,7 +20,7 @@ img_formats = ['.bmp', '.jpg', '.jpeg', '.png', '.tif', '.tiff', '.dng']
 vid_formats = ['.mov', '.avi', '.mp4', '.mpg', '.mpeg', '.m4v', '.wmv', '.mkv']
 
 class LoadImages:  # for inference
-    def __init__(self, path, img_size=512):
+    def __init__(self, path, img_size=640):
         p = str(Path(path))  # os-agnostic
         p = os.path.abspath(p)  # absolute path
         if '*' in p:
@@ -84,7 +84,7 @@ class LoadImages:  # for inference
             h0, w0 = img0.shape[:2]
 
         # Padded resize
-        img, ratio, pad = letterbox_for_img(img0, new_shape=self.img_size)
+        img, ratio, pad = letterbox_for_img(img0, new_shape=self.img_size, auto=True)
         h, w = img.shape[:2]
         shapes = (h0, w0), ((h / h0, w / w0), pad)
 
