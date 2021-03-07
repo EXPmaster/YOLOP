@@ -5,7 +5,7 @@ from .AutoDriveDataset import AutoDriveDataset
 from .convert import convert, id_dict
 from tqdm import tqdm
 
-single_cls = True       # just detect vehicle
+single_cls = False       # just detect vehicle
 
 class BddDataset(AutoDriveDataset):
     def __init__(self, cfg, is_train, inputsize, transform=None):
@@ -29,7 +29,7 @@ class BddDataset(AutoDriveDataset):
         print('building database...')
         gt_db = []
         height, width = self.shapes
-        for mask in tqdm(list(self.mask_list)[:64]):
+        for mask in tqdm(list(self.mask_list)):
             mask_path = str(mask)
             label_path = mask_path.replace(str(self.mask_root), str(self.label_root)).replace(".png", ".json")
             image_path = mask_path.replace(str(self.mask_root), str(self.img_root)).replace(".png", ".jpg")
@@ -75,6 +75,8 @@ class BddDataset(AutoDriveDataset):
                 if single_cls:
                     if obj['category'] in id_dict.keys():
                         remain.append(obj)
+                else:
+                    remain.append(obj)
         return remain
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
