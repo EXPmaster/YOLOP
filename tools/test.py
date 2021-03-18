@@ -36,7 +36,7 @@ def parse_args():
                         help='log directory',
                         type=str,
                         default='runs/')
-    parser.add_argument('--weights', nargs='+', type=str, default='/home/zwt/wd/DaChuang/runs/BddDataset/_2021-02-01-23-47/epoch-103.pth', help='model.pth path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='/home/zwt/wd/DaChuang/runs/BddDataset/_2021-03-12-16-16/epoch-74.pth', help='model.pth path(s)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
     args = parser.parse_args()
@@ -69,6 +69,7 @@ def main():
     # DP mode
     device = select_device(logger, batch_size=cfg.TEST.BATCH_SIZE_PER_GPU* len(cfg.GPUS)) if not cfg.DEBUG \
         else select_device(logger, 'cpu')
+    # device = select_device(logger, 'cpu')
 
     model = get_net(cfg)
     print("finish build model")
@@ -78,15 +79,19 @@ def main():
 
     # load checkpoint model
 
+    det_idx_range = [str(i) for i in range(0,25)]
+    model_dict = model.state_dict()
     checkpoint_file = args.weights
     logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
     checkpoint = torch.load(checkpoint_file)
-    model.load_state_dict(checkpoint['state_dict'])
+    checkpoint_dict = {k: v for k, v in checkpoint['state_dict'].items() if k.split(".")[1] in det_idx_range}
+    model_dict.update(checkpoint_dict)
+    model.load_state_dict(model_dict)
     logger.info("=> loaded checkpoint '{}' ".format(checkpoint_file))
 
     model = model.to(device)
     model.gr = 1.0
-    model.nc = 13
+    model.nc = 1
     print('bulid model finished')
 
     print("begin to load data")
@@ -105,30 +110,40 @@ def main():
         ])
     )
 
+    # valid_loader = DataLoaderX(
+    #     valid_dataset,
+    #     batch_size=cfg.TEST.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
+    #     shuffle=False,
+    #     num_workers=cfg.WORKERS,
+    #     pin_memory=cfg.PIN_MEMORY,
+    #     collate_fn=dataset.AutoDriveDataset.collate_fn
+    # )
     valid_loader = DataLoaderX(
         valid_dataset,
-        batch_size=cfg.TEST.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
+        batch_size=1,
         shuffle=False,
         num_workers=cfg.WORKERS,
-        pin_memory=cfg.PIN_MEMORY,
+        pin_memory=False,
         collate_fn=dataset.AutoDriveDataset.collate_fn
     )
     print('load data finished')
 
     epoch = 0 #special for test
-    segment_results,detect_results, total_loss,maps, times = validate(
+    da_segment_results,ll_segment_results,detect_results, total_loss,maps, times = validate(
         epoch,cfg, valid_loader, valid_dataset, model, criterion,
         final_output_dir, tb_log_dir, writer_dict,
         logger, device
     )
     fi = fitness(np.array(detect_results).reshape(1, -1))
     msg =   'Test:    Loss({loss:.3f})\n' \
-            'Segment: Acc({seg_acc:.3f})    mIOU({seg_miou:.3f})    FIOU ({seg_fiou:.3f})\n' \
-            'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})\n'\
-            'Time: inference({t_inf:.4f}s/frame)  nms({t_nms:.4f}s/frame)'.format(
-                    loss=total_loss, seg_acc=segment_results[0],seg_miou=segment_results[2],seg_fiou=segment_results[3],
-                    p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3],
-                    t_inf=times[0], t_nms=times[1])
+            'Driving area Segment: Acc({da_seg_acc:.3f})    IOU ({da_seg_iou:.3f})    mIOU({da_seg_miou:.3f})\n' \
+                      'Lane line Segment: Acc({ll_seg_acc:.3f})    IOU ({ll_seg_iou:.3f})  mIOU({ll_seg_miou:.3f})\n' \
+                      'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})\n'\
+                      'Time: inference({t_inf:.4f}s/frame)  nms({t_nms:.4f}s/frame)'.format(
+                          loss=total_loss, da_seg_acc=da_segment_results[0],da_seg_iou=da_segment_results[1],da_seg_miou=da_segment_results[2],
+                          ll_seg_acc=ll_segment_results[0],ll_seg_iou=ll_segment_results[1],ll_seg_miou=ll_segment_results[2],
+                          p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3],
+                          t_inf=times[0], t_nms=times[1])
     logger.info(msg)
     print("test finish")
 

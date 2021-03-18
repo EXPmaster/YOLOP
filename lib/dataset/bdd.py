@@ -2,10 +2,10 @@ import numpy as np
 import json
 
 from .AutoDriveDataset import AutoDriveDataset
-from .convert import convert, id_dict
+from .convert import convert, id_dict, id_dict_single
 from tqdm import tqdm
 
-single_cls = False       # just detect vehicle
+single_cls = True       # just detect vehicle
 
 class BddDataset(AutoDriveDataset):
     def __init__(self, cfg, is_train, inputsize, transform=None):
@@ -73,7 +73,7 @@ class BddDataset(AutoDriveDataset):
         for obj in data:
             if 'box2d' in obj.keys():  # obj.has_key('box2d'):
                 if single_cls:
-                    if obj['category'] in id_dict.keys():
+                    if obj['category'] in id_dict_single.keys():
                         remain.append(obj)
                 else:
                     remain.append(obj)

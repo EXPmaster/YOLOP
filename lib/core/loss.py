@@ -49,6 +49,7 @@ class MultiHeadLoss(nn.Module):
         #                for lam, l in zip(self.lambdas, head_losses)
         #                if l is not None]
         # total_loss = sum(loss_values) if loss_values else None
+        # print(model.nc)
         total_loss, head_losses = self._forward_impl(head_fields, head_targets, shapes, model)
 
         return total_loss, head_losses
@@ -102,11 +103,11 @@ class MultiHeadLoss(nn.Module):
                 tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio
 
                 # Classification
+                # print(model.nc)
                 if model.nc > 1:  # cls loss (only if multiple classes)
                     t = torch.full_like(ps[:, 5:], cn, device=device)  # targets
                     t[range(n), tcls[i]] = cp
                     lcls += BCEcls(ps[:, 5:], t)  # BCE
-
             lobj += BCEobj(pi[..., 4], tobj) * balance[i]  # obj loss
 
         drive_area_seg_predicts = predictions[1].view(-1)
@@ -141,10 +142,10 @@ class MultiHeadLoss(nn.Module):
         liou_ll *= cfg.LOSS.LL_IOU_GAIN * self.lambdas[5]
 
         # bs = tobj.shape[0]  # batch size
-        """if cfg.TRAIN.FREEZE_SEG:
+        if cfg.TRAIN.DET_ONLY:
             lseg_da = 0 * lseg_da
             lseg_ll = 0 * lseg_ll
-            liou_ll = 0 * liou_ll"""
+            liou_ll = 0 * liou_ll
 
         loss = lbox + lobj + lcls + lseg_da + lseg_ll + liou_ll
         # loss = lseg
