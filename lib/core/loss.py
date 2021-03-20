@@ -141,10 +141,10 @@ class MultiHeadLoss(nn.Module):
         liou_ll *= cfg.LOSS.LL_IOU_GAIN * self.lambdas[5]
 
         # bs = tobj.shape[0]  # batch size
-        """if cfg.TRAIN.FREEZE_SEG:
+        if cfg.TRAIN.FREEZE_SEG:
             lseg_da = 0 * lseg_da
             lseg_ll = 0 * lseg_ll
-            liou_ll = 0 * liou_ll"""
+            liou_ll = 0 * liou_ll
 
         loss = lbox + lobj + lcls + lseg_da + lseg_ll + liou_ll
         # loss = lseg

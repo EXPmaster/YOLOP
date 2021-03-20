@@ -204,7 +204,7 @@ def main():
 
     # assign model params
     model.gr = 1.0
-    model.nc = 13
+    model.nc = 1
     print('bulid model finished')
 
     print("begin to load data")

@@ -1,1 +1,1 @@
-from .backbones.CSPDarknet import get_net
+from .backbones.light import get_net

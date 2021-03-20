@@ -47,10 +47,10 @@ _C.LOSS.LL_IOU_GAIN = 1.0  # lane line iou loss gain
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
-_C.DATASET.DATAROOT = '/workspace/zwt/DaChuang/bdd/bdd100k/images/100k'
-_C.DATASET.LABELROOT = '/workspace/zwt/DaChuang/bdd/bdd100k/labels/100k'
-_C.DATASET.MASKROOT = '/workspace/zwt/DaChuang/bdd/bdd_seg_gt'
-_C.DATASET.LANEROOT = '/workspace/zwt/DaChuang/bdd/bdd_lane_gt'
+_C.DATASET.DATAROOT = '/home/wqm/bdd/bdd100k/images/100k'
+_C.DATASET.LABELROOT = '/home/wqm/bdd/bdd100k/labels/100k'
+_C.DATASET.MASKROOT = '/home/wqm/bdd/bdd_seg_gt'
+_C.DATASET.LANEROOT = '/home/wqm/bdd/bdd_lane_gt'
 _C.DATASET.DATASET = 'BddDataset'
 _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'val'
@@ -90,13 +90,14 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
 _C.TRAIN.VAL_FREQ = 1
-_C.TRAIN.BATCH_SIZE_PER_GPU = 4
+_C.TRAIN.BATCH_SIZE_PER_GPU = 16
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
 _C.TRAIN.SEG_ONLY = False
+_C.TRAIN.FREEZE_SEG = True
 _C.TRAIN.DET_ONLY = True   #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]  Third stage:joint train
 _C.TRAIN.PLOT = True
 
