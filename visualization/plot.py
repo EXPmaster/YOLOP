@@ -35,12 +35,23 @@ def show_seg_result(img, result, index, epoch, save_dir=None, is_ll=False,palett
     assert palette.shape[0] == 3 # len(classes)
     assert palette.shape[1] == 3
     assert len(palette.shape) == 2
-    color_seg = np.zeros((result.shape[0], result.shape[1], 3), dtype=np.uint8)
-    for label, color in enumerate(palette):
-        color_seg[result == label, :] = color
+    
+    if not is_demo:
+        color_seg = np.zeros((result.shape[0], result.shape[1], 3), dtype=np.uint8)
+        for label, color in enumerate(palette):
+            color_seg[result == label, :] = color
+    else:
+        color_area = np.zeros((result[0].shape[0], result[0].shape[1], 3), dtype=np.uint8)
+        color_lane = np.zeros((result[1].shape[0], result[1].shape[1], 3), dtype=np.uint8)
+        for label, color in enumerate(palette):
+            color_area[result[0] == label, :] = color
+
+        # color_lane[result[1] == 0, :] = palette[0]
+        color_area[result[1] == 1] = palette[2]
+        color_seg = color_area
+
     # convert to BGR
     color_seg = color_seg[..., ::-1]
-
     img = img * 0.5 + color_seg * 0.5
     img = img.astype(np.uint8)
     img = cv2.resize(img, (1280,720), interpolation=cv2.INTER_LINEAR)

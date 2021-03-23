@@ -15,6 +15,7 @@ import cv2
 import os
 import math
 from torch.cuda import amp
+from tqdm import tqdm
 
 
 def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_batch, num_warmup,
@@ -144,7 +145,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     save_hybrid=False
     log_imgs,wandb = min(16,100), None
 
-    nc = 1
+    nc = 13
     iouv = torch.linspace(0.5,0.95,10).to(device)     #iou vector for mAP@0.5:0.95
     niou = iouv.numel()
 
@@ -156,8 +157,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
     seen =  0 
     confusion_matrix = ConfusionMatrix(nc=model.nc) #detector confusion matrix
-    da_metric = SegmentationMetric(2) #segment confusion matrix    
-    ll_metric = SegmentationMetric(2) #segment confusion matrix
+    da_metric = SegmentationMetric(3) #segment confusion matrix    
+    ll_metric = SegmentationMetric(3) #segment confusion matrix
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
@@ -183,7 +184,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     model.eval()
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
 
-    for batch_i, (img, target, paths, shapes) in enumerate(val_loader):
+    for batch_i, (img, target, paths, shapes) in tqdm(enumerate(val_loader), total=len(val_loader)):
         if not config.DEBUG:
             img = img.to(device, non_blocking=True)
             assign_target = []
@@ -202,7 +203,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             det_out, da_seg_out, ll_seg_out= model(img)
             t_inf = time_synchronized() - t
             if batch_i > 0:
-                T_inf.update(t_inf,img.size(0))
+                T_inf.update(t_inf/img.size(0),img.size(0))
 
             inf_out,train_out = det_out
 
@@ -230,7 +231,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
             ll_metric.reset()
             ll_metric.addBatch(ll_predict.cpu(), ll_gt.cpu())
-            ll_acc = ll_metric.pixelAccuracy()
+            ll_acc = ll_metric.lineAccuracy()
             ll_IoU = ll_metric.IntersectionOverUnion()
             ll_mIoU = ll_metric.meanIntersectionOverUnion()
 
@@ -250,7 +251,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             #output = non_max_suppression(inf_out, conf_thres=config.TEST.NMS_CONF_THRES, iou_thres=config.TEST.NMS_IOU_THRES)
             t_nms = time_synchronized() - t
             if batch_i > 0:
-                T_nms.update(t_nms,img.size(0))
+                T_nms.update(t_nms/img.size(0),img.size(0))
 
             if config.TEST.PLOTS:
                 if batch_i == 0:
@@ -284,8 +285,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         ll_gt_mask = ll_gt_mask.int().squeeze().cpu().numpy()
                         # seg_mask = seg_mask > 0.5
                         # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
-                        _ = show_seg_result(img_ll, ll_seg_mask, i,epoch,save_dir)
-                        _ = show_seg_result(img_ll, ll_gt_mask, i, epoch, save_dir, is_gt=True)
+                        _ = show_seg_result(img_ll, ll_seg_mask, i,epoch,save_dir, is_ll=True)
+                        _ = show_seg_result(img_ll, ll_gt_mask, i, epoch, save_dir, is_ll=True, is_gt=True)
 
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()
@@ -293,6 +294,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         if len(det):
                             det[:,:4] = scale_coords(img[i].shape[1:],det[:,:4],img_det.shape).round()
                         for *xyxy,conf,cls in reversed(output[i]):
+                            #print(cls)
                             label_det_pred = f'{names[int(cls)]} {conf:.2f}'
                             plot_one_box(xyxy, img_det , label=label_det_pred, color=colors[int(cls)], line_thickness=3)
                         cv2.imwrite(save_dir+"/batch_{}_{}_det_pred.png".format(epoch,i),img_det)
@@ -303,6 +305,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         if len(labels):
                             labels[:,1:5]=scale_coords(img[i].shape[1:],labels[:,1:5],img_gt.shape).round()
                         for cls,x1,y1,x2,y2 in labels:
+                            #print(names)
+                            #print(cls)
                             label_det_gt = f'{names[int(cls)]}'
                             xyxy = (x1,y1,x2,y2)
                             plot_one_box(xyxy, img_gt , label=label_det_gt, color=colors[int(cls)], line_thickness=3)
@@ -475,8 +479,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     da_segment_result = (da_acc_seg.avg,da_IoU_seg.avg,da_mIoU_seg.avg)
     ll_segment_result = (ll_acc_seg.avg,ll_IoU_seg.avg,ll_mIoU_seg.avg)
 
-    print(da_segment_result)
-    print(ll_segment_result)
+    # print(da_segment_result)
+    # print(ll_segment_result)
     detect_result = np.asarray([mp, mr, map50, map])
     # print('mp:{},mr:{},map50:{},map:{}'.format(mp, mr, map50, map))
     #print segmet_result

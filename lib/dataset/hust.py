@@ -4,10 +4,11 @@ import json
 from .AutoDriveDataset import AutoDriveDataset
 from .convert import convert, id_dict, id_dict_single
 from tqdm import tqdm
+import os
 
 single_cls = False     # just detect vehicle
 
-class BddDataset(AutoDriveDataset):
+class HustDataset(AutoDriveDataset):
     def __init__(self, cfg, is_train, inputsize, transform=None):
         super().__init__(cfg, is_train, inputsize, transform)
         self.db = self._get_db()
@@ -31,18 +32,19 @@ class BddDataset(AutoDriveDataset):
         height, width = self.shapes
         for mask in tqdm(list(self.mask_list)):
             mask_path = str(mask)
-            label_path = mask_path.replace(str(self.mask_root), str(self.label_root)).replace(".png", ".json")
+            label_path = self.label_root
+            # label_path = mask_path.replace(str(self.mask_root), str(self.label_root)).replace(".png", ".json")
             image_path = mask_path.replace(str(self.mask_root), str(self.img_root)).replace(".png", ".jpg")
             lane_path = mask_path.replace(str(self.mask_root), str(self.lane_root))
             with open(label_path, 'r') as f:
                 label = json.load(f)
-            data = label['frames'][0]['objects']
+            data = label[int(os.path.basename(image_path)[:-4])]["labels"]
             data = self.filter_data(data)
             gt = np.zeros((len(data), 5))
             for idx, obj in enumerate(data):
                 category = obj['category']
                 if category == "traffic light":
-                    color = obj['attributes']['trafficLightColor']
+                    color = obj['attributes']['Traffic Light Color'][0]
                     category = "tl_" + color
                 if category in id_dict.keys():
                     x1 = float(obj['box2d']['x1'])

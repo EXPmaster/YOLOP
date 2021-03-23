@@ -15,7 +15,7 @@ from lib.models.common import Conv, SPP, Bottleneck, BottleneckCSP, Focus, Conca
 from torch.nn import Upsample
 from lib.utils import check_anchor_order
 from lib.core.evaluate import SegmentationMetric
-
+from lib.utils.utils import time_synchronized
 
 CSPDarknet_s = [
 [ -1, Focus, [3, 32, 3]],
@@ -106,7 +106,7 @@ MCnet_SPP = [
 [ -1, Upsample, [None, 2, 'nearest']],
 [ -1, SPP, [8, 2, [5, 9, 13]]] #segmentation output
 ]
-
+# [2,6,3,9,5,13], [7,19,11,26,17,39], [28,64,44,103,61,183]
 
 MCnet_0 = [
 [ -1, Focus, [3, 32, 3]],
@@ -133,7 +133,7 @@ MCnet_0 = [
 [ -1, Conv, [256, 256, 3, 2]],
 [ [-1, 10], Concat, [1]],
 [ -1, BottleneckCSP, [512, 512, 1, False]],
-[ [17, 20, 23], Detect,  [1, [[2,6,3,9,5,13], [7,19,11,26,17,39], [28,64,44,103,61,183]], [128, 256, 512]]], #Detect output 24
+[ [17, 20, 23], Detect,  [1, [[3,9,5,11,4,20], [7,18,6,39,12,31], [19,50,38,81,68,157]], [128, 256, 512]]], #Detect output 24
 
 [ 16, Conv, [128, 64, 3, 1]],
 [ -1, Upsample, [None, 2, 'nearest']],
@@ -160,7 +160,7 @@ MCnet_0 = [
 
 
 # The lane line and the driving area segment branches share information with each other
-MCnet_1 = [
+MCnet_share = [
 [ -1, Focus, [3, 32, 3]],   #0
 [ -1, Conv, [32, 64, 3, 2]],    #1
 [ -1, BottleneckCSP, [64, 64, 1]],  #2
@@ -185,7 +185,7 @@ MCnet_1 = [
 [ -1, Conv, [256, 256, 3, 2]],      #21
 [ [-1, 10], Concat, [1]],   #22
 [ -1, BottleneckCSP, [512, 512, 1, False]],     #23
-[ [17, 20, 23], Detect,  [1, [[2,6,3,9,5,13], [7,19,11,26,17,39], [28,64,44,103,61,183]], [128, 256, 512]]], #Detect output 24
+[ [17, 20, 23], Detect,  [1, [[3,9,5,11,4,20], [7,18,6,39,12,31], [19,50,38,81,68,157]], [128, 256, 512]]], #Detect output 24
 
 [ 16, Conv, [256, 64, 3, 1]],   #25
 [ -1, Upsample, [None, 2, 'nearest']],  #26
@@ -219,14 +219,66 @@ MCnet_1 = [
 [ -1, Conv, [16, 2, 3, 1]] #48Lane line segmentation output
 ]
 
+# The lane line and the driving area segment branches without share information with each other
+MCnet_no_share = [
+[ -1, Focus, [3, 32, 3]],   #0
+[ -1, Conv, [32, 64, 3, 2]],    #1
+[ -1, BottleneckCSP, [64, 64, 1]],  #2
+[ -1, Conv, [64, 128, 3, 2]],   #3
+[ -1, BottleneckCSP, [128, 128, 3]],    #4
+[ -1, Conv, [128, 256, 3, 2]],  #5
+[ -1, BottleneckCSP, [256, 256, 3]],    #6
+[ -1, Conv, [256, 512, 3, 2]],  #7
+[ -1, SPP, [512, 512, [5, 9, 13]]],     #8
+[ -1, BottleneckCSP, [512, 512, 1, False]],     #9
+[ -1, Conv,[512, 256, 1, 1]],   #10
+[ -1, Upsample, [None, 2, 'nearest']],  #11
+[ [-1, 6], Concat, [1]],    #12
+[ -1, BottleneckCSP, [512, 256, 1, False]], #13
+[ -1, Conv, [256, 128, 1, 1]],  #14
+[ -1, Upsample, [None, 2, 'nearest']],  #15
+[ [-1,4], Concat, [1]],     #16
+[ -1, BottleneckCSP, [256, 128, 1, False]],     #17
+[ -1, Conv, [128, 128, 3, 2]],      #18
+[ [-1, 14], Concat, [1]],       #19
+[ -1, BottleneckCSP, [256, 256, 1, False]],     #20
+[ -1, Conv, [256, 256, 3, 2]],      #21
+[ [-1, 10], Concat, [1]],   #22
+[ -1, BottleneckCSP, [512, 512, 1, False]],     #23
+[ [17, 20, 23], Detect,  [13, [[3,9,5,11,4,20], [7,18,6,39,12,31], [19,50,38,81,68,157]], [128, 256, 512]]], #Detect output 24
+
+[ 16, Conv, [256, 64, 3, 1]],   #25
+[ -1, Upsample, [None, 2, 'nearest']],  #26
+[ [-1,2], Concat, [1]],  #27
+[ -1, BottleneckCSP, [128, 64, 1, False]],  #28
+[ -1, Conv, [64, 32, 3, 1]],    #29
+[ -1, Upsample, [None, 2, 'nearest']],  #30
+[ -1, Conv, [32, 16, 3, 1]],    #31
+[ -1, BottleneckCSP, [16, 8, 1, False]],    #32 driving area segment neck
+[ -1, Upsample, [None, 2, 'nearest']],  #33
+[ -1, Conv, [8, 3, 3, 1]], #34 Driving area segmentation output
+
+[ 16, Conv, [256, 64, 3, 1]],   #35
+[ -1, Upsample, [None, 2, 'nearest']],  #36
+[ [-1,2], Concat, [1]], #37
+[ -1, BottleneckCSP, [128, 64, 1, False]],  #38
+[ -1, Conv, [64, 32, 3, 1]],    #39
+[ -1, Upsample, [None, 2, 'nearest']],  #40
+[ -1, Conv, [32, 16, 3, 1]],    #41
+[ -1, BottleneckCSP, [16, 8, 1, False]],    #42 lane line segment neck
+[ -1, Upsample, [None, 2, 'nearest']],  #43
+[ -1, Conv, [8, 2, 3, 1]] #44 Lane line segmentation output
+]
+
+
 
 class MCnet(nn.Module):
     def __init__(self, block_cfg, **kwargs):
         super(MCnet, self).__init__()
         layers, save= [], []
-        # self.nc = 13    #output category num
-        self.nc = 1
+        self.nc = 13
         self.detector_index = -1
+        self.Da_out_idx = 45 if len(block_cfg)==49 else 34
 
         # Build model
         for i, (from_, block, args) in enumerate(block_cfg):
@@ -260,21 +312,29 @@ class MCnet(nn.Module):
     def forward(self, x):
         cache = []
         out = []
+        #times = []
         for i, block in enumerate(self.model):
+            #t0 = time_synchronized()
             if block.from_ != -1:
                 x = cache[block.from_] if isinstance(block.from_, int) else [x if j == -1 else cache[j] for j in block.from_]       #calculate concat detect
             x = block(x)
-            """y = None if isinstance(x, list) else x.shape"""
             if isinstance(block, Detect):   # save detector result
                 out.append(x)
-            if i == 45:     #save driving area segment result
+            if i == self.Da_out_idx:     #save driving area segment result
                 m=nn.Sigmoid()
                 out.append(m(x))
             cache.append(x if block.index in self.save else None)
+            """t1 = time_synchronized()
+            print(str(i) + " : " + str(t1-t0))
+            times.append(t1-t0)
+        print(sum(times[:25]))
+        print(sum(times[25:33]))
+        print(sum(times[33:41]))
+        print(sum(times[41:43]))
+        print(sum(times[43:46]))
+        print(sum(times[46:]))"""
         m=nn.Sigmoid()
         out.append(m(x))
-        # out.append(x)
-        # print(out[0][0].shape, out[0][1].shape, out[0][2].shape)
         return out
     
     def _initialize_biases(self, cf=None):  # initialize biases into Detect(), cf is class frequency
@@ -293,7 +353,7 @@ class CSPDarknet(nn.Module):
         super(CSPDarknet, self).__init__()
         layers, save= [], []
         # self.nc = 13    #output category num
-        self.nc = 1
+        self.nc = 13
         self.detector_index = -1
 
         # Build model
@@ -354,12 +414,9 @@ class CSPDarknet(nn.Module):
             mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
 
-def get_net(is_train, **kwargs):
-    # bb_block_cfg = CSPDarknet_s
-    m_block_cfg = MCnet_1
-    #model = CSPDarknet(m_block_cfg, **kwargs)
+def get_net(cfg, **kwargs): 
+    m_block_cfg = MCnet_share if cfg.MODEL.STRU_WITHSHARE else MCnet_no_share
     model = MCnet(m_block_cfg, **kwargs)
-    # print('get_net')
     return model
 
 

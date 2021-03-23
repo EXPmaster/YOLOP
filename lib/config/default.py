@@ -8,8 +8,8 @@ _C = CN()
 _C.LOG_DIR = 'runs/'
 _C.GPUS = (0,)
 _C.WORKERS = 8
-_C.PIN_MEMORY = False
-_C.PRINT_FREQ = 20
+_C.PIN_MEMORY = True
+_C.PRINT_FREQ = 5
 _C.AUTO_RESUME = False
 _C.NEED_AUTOANCHOR = True
 _C.DEBUG = False
@@ -23,11 +23,16 @@ _C.CUDNN.ENABLED = True
 # common params for NETWORK
 _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
+_C.MODEL.STRU_WITHSHARE = False     #add share_block to segbranch
 _C.MODEL.HEADS_NAME = ['']
 # _C.MODEL.PRETRAINED = "/home/zwt/wd/DaChuang/runs/BddDataset/_2021-02-13-10-31/epoch-97.pth"
-_C.MODEL.PRETRAINED = ""
+_C.MODEL.PRETRAINED = "/home/wqm/DaChuang/runs/BddDataset/_2021-03-23-00-00/epoch-68.pth"
+# _C.MODEL.PRETRAINED = "/home/zwt/wd/DaChuang/runs/BddDataset/_2021-03-09-17-44/epoch-32.pth"
+_C.MODEL.PRETRAINED_DET = ""
+# _C.MODEL.PRETRAINED_DET = "/home/wqm/DaChuang/runs/BddDataset/_2021-03-22-08-31/epoch-48.pth"
+#_C.MODEL.PRETRAINED_DET = "/home/zwt/wd/DaChuang/runs/BddDataset/_2021-02-06-00-13/epoch-56.pth"
 #_C.MODEL.PRETRAINED = '/home/zwt/wd/DaChuang/runs/BddDataset/_2021-01-31-23-16/epoch-84.pth'
-_C.MODEL.IMAGE_SIZE = [320, 320]  # width * height, ex: 192 * 256
+_C.MODEL.IMAGE_SIZE = [640, 640]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
 # loss params
@@ -47,14 +52,14 @@ _C.LOSS.LL_IOU_GAIN = 1.0  # lane line iou loss gain
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
-_C.DATASET.DATAROOT = '/home/wqm/bdd/bdd100k/images/100k'
-_C.DATASET.LABELROOT = '/home/wqm/bdd/bdd100k/labels/100k'
-_C.DATASET.MASKROOT = '/home/wqm/bdd/bdd_seg_gt'
-_C.DATASET.LANEROOT = '/home/wqm/bdd/bdd_lane_gt'
-_C.DATASET.DATASET = 'BddDataset'
+_C.DATASET.DATAROOT = '/home/wqm/bdd/data_hust/'
+_C.DATASET.LABELROOT = '/home/wqm/bdd/hust_det.json'
+_C.DATASET.MASKROOT = '/home/wqm/bdd/hust_area/'
+_C.DATASET.LANEROOT = '/home/wqm/bdd/hust_lane/'
+_C.DATASET.DATASET = 'HustDataset'
 _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'val'
-_C.DATASET.DATA_FORMAT = 'jpg'
+_C.DATASET.DATA_FORMAT = 'png'
 _C.DATASET.SELECT_DATA = False
 _C.DATASET.ORG_IMG_SIZE = [720, 1280]
 
@@ -90,20 +95,19 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 140
 
 _C.TRAIN.VAL_FREQ = 1
-_C.TRAIN.BATCH_SIZE_PER_GPU = 16
+_C.TRAIN.BATCH_SIZE_PER_GPU = 32
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
 _C.TRAIN.ANCHOR_THRESHOLD = 4.0
 
-_C.TRAIN.SEG_ONLY = False
-_C.TRAIN.FREEZE_SEG = True
-_C.TRAIN.DET_ONLY = True   #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]  Third stage:joint train
+_C.TRAIN.SEG_ONLY = True
+_C.TRAIN.DET_ONLY = False   #First stage:only train detect:[F,T]  Second stage:only train segment:[T,F]  Third stage:joint train
 _C.TRAIN.PLOT = True
 
 # testing
 _C.TEST = CN(new_allowed=True)
-_C.TEST.BATCH_SIZE_PER_GPU = 4
+_C.TEST.BATCH_SIZE_PER_GPU = 8
 _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False

@@ -133,8 +133,10 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-    stage1_unfreeze_parameter = ['model.{}'.format(x) for x in range(25, 49)]
-    stage2_unfreeze_parameter = ['model.{}'.format(x) for x in range(0, 25)]
+    stage1_freeze_parameter = ['model.{}.'.format(x) for x in range(25, 45)]
+    stage2_freeze_parameter = ['model.{}.'.format(x) for x in range(0, 25)]
+    stage1_freeze_idx = [str(i) for i in range(25,45)]
+    stage2_freeze_idx = [str(i) for i in range(0,25)]
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
     #     last_epoch=last_epoch
@@ -150,6 +152,32 @@ def main():
         )
         # print(checkpoint_file)
         # print(os.path.exists(checkpoint_file))
+        if os.path.exists(cfg.MODEL.PRETRAINED):
+            logger.info("=> loading model '{}'".format(cfg.MODEL.PRETRAINED))
+            checkpoint = torch.load(cfg.MODEL.PRETRAINED)
+            # begin_epoch = checkpoint['epoch']
+            begin_epoch = 0
+            # best_perf = checkpoint['perf']
+            last_epoch = checkpoint['epoch']
+            model.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            logger.info("=> loaded checkpoint '{}' (epoch {})".format(
+                cfg.MODEL.PRETRAINED, checkpoint['epoch']))
+            #cfg.NEED_AUTOANCHOR = False     #disable autoanchor
+        
+        if os.path.exists(cfg.MODEL.PRETRAINED_DET):
+            logger.info("=> loading model weight in det branch from '{}'".format(cfg.MODEL.PRETRAINED))
+            det_idx_range = [str(i) for i in range(0,25)]
+            model_dict = model.state_dict()
+            checkpoint_file = cfg.MODEL.PRETRAINED_DET
+            checkpoint = torch.load(checkpoint_file)
+            begin_epoch = checkpoint['epoch']
+            last_epoch = checkpoint['epoch']
+            checkpoint_dict = {k: v for k, v in checkpoint['state_dict'].items() if k.split(".")[1] in det_idx_range}
+            model_dict.update(checkpoint_dict)
+            model.load_state_dict(model_dict)
+            logger.info("=> loaded det branch checkpoint '{}' ".format(checkpoint_file))
+        
         if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
             checkpoint = torch.load(checkpoint_file)
@@ -161,34 +189,26 @@ def main():
             optimizer.load_state_dict(checkpoint['optimizer'])
             logger.info("=> loaded checkpoint '{}' (epoch {})".format(
                 checkpoint_file, checkpoint['epoch']))
-        
-        if os.path.exists(cfg.MODEL.PRETRAINED):
-            logger.info("=> loading model '{}'".format(cfg.MODEL.PRETRAINED))
-            checkpoint = torch.load(cfg.MODEL.PRETRAINED)
-            begin_epoch = checkpoint['epoch']
-            # best_perf = checkpoint['perf']
-            last_epoch = checkpoint['epoch']
-            model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            logger.info("=> loaded checkpoint '{}' (epoch {})".format(
-                cfg.MODEL.PRETRAINED, checkpoint['epoch']))
+            #cfg.NEED_AUTOANCHOR = False     #disable autoanchor
         if cfg.TRAIN.DET_ONLY:  #stage_1
             logger.info('freeze seg-brach...')
             # print(model.named_parameters)
             for k, v in model.named_parameters():
-                v.requires_grad = False  # train all layers
-                if any(x in k for x in stage1_unfreeze_parameter):
+                v.requires_grad = True  # train all layers
+                
+                if k.split(".")[1] in stage1_freeze_idx:
                     print('freezing %s' % k)
-                    v.requires_grad = True
+                    v.requires_grad = False
 
         if cfg.TRAIN.SEG_ONLY:  #stage_2
             logger.info('freeze backbone...')
-            # print(model.named_parameters)
+            #print(model.named_parameters)
             for k, v in model.named_parameters():
-                v.requires_grad = False  # train all layers
-                if any(x in k for x in stage2_unfreeze_parameter):
+                v.requires_grad = True  # train all layers
+                # print(k)
+                if k.split(".")[1] in stage2_freeze_idx:
                     print('freezing %s' % k)
-                    v.requires_grad = True
+                    v.requires_grad = False
         
             # optimizer = get_optimizer(cfg, model)
     
@@ -204,8 +224,8 @@ def main():
 
     # assign model params
     model.gr = 1.0
-    model.nc = 1
-    print('bulid model finished')
+    model.nc = 13
+    # print('bulid model finished')
 
     print("begin to load data")
     # Data loading
@@ -258,10 +278,10 @@ def main():
     
     if rank in [-1, 0]:
         if cfg.NEED_AUTOANCHOR:
-            print("begin check anchors")
+            logger.info("begin check anchors")
             run_anchor(logger,train_dataset, model=model, thr=cfg.TRAIN.ANCHOR_THRESHOLD, imgsz=min(cfg.MODEL.IMAGE_SIZE))
         else:
-            print("anchors loaded successfully")
+            logger.info("anchors loaded successfully")
             det = model.module.model[model.module.detector_index] if is_parallel(model) \
                 else model.model[model.detector_index]
             logger.info(str(det.anchors))
@@ -282,7 +302,7 @@ def main():
         # evaluate on validation set
         if (epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH) and rank in [-1, 0]:
             # print('validate')
-            ll_segment_results,da_segment_results,detect_results, total_loss,maps, times = validate(
+            da_segment_results,ll_segment_results,detect_results, total_loss,maps, times = validate(
                 epoch,cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank

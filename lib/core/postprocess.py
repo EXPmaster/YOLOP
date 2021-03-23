@@ -1,5 +1,8 @@
 import torch
 from lib.utils import is_parallel
+import numpy as np
+np.set_printoptions(threshold=np.inf)
+import cv2
 
 
 def build_targets(cfg, predictions, targets, model):
@@ -73,3 +76,96 @@ def build_targets(cfg, predictions, targets, model):
         tcls.append(c)  # class
 
     return tcls, tbox, indices, anch
+
+def morphological_process(image, kernel_size=5, func_type=cv2.MORPH_CLOSE):
+    """
+    morphological process to fill the hole in the binary segmentation result
+    :param image:
+    :param kernel_size:
+    :return:
+    """
+    if len(image.shape) == 3:
+        raise ValueError('Binary segmentation result image should be a single channel image')
+
+    if image.dtype is not np.uint8:
+        image = np.array(image, np.uint8)
+
+    kernel = cv2.getStructuringElement(shape=cv2.MORPH_ELLIPSE, ksize=(kernel_size, kernel_size))
+
+    # close operation fille hole
+    closing = cv2.morphologyEx(image, func_type, kernel, iterations=1)
+
+    return closing
+
+def fillHole(image):
+    im_floodfill = image.copy()
+    h, w = image.shape[:2]
+    mask = np.zeros((h+2, w+2), np.uint8)
+    seed = np.where(im_floodfill==0)
+
+	# Floodfill from point (0, 0)
+    cv2.floodFill(im_floodfill, mask, (seed[0][0],seed[1][0]), 1, 0, 0)
+
+	# Invert floodfilled image
+    # print(im_floodfill)
+    im_floodfill_inv = cv2.bitwise_not(im_floodfill)
+
+	# Combine the two images to get the foreground.
+    im_out = image | im_floodfill_inv
+    # print(im_out)
+    return im_out
+
+def connect_components_analysis(image):
+    """
+    connect components analysis to remove the small components
+    :param image:
+    :return:
+    """
+    if len(image.shape) == 3:
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray_image = image
+    # print(gray_image.dtype)
+    return cv2.connectedComponentsWithStats(gray_image, connectivity=8, ltype=cv2.CV_32S)
+
+def fitlane(image):
+    if len(image.shape) == 3:
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray_image = image
+    
+    mask = np.zeros((image.shape[0], image.shape[1]), np.uint8)
+    # print(gray_image.dtype)
+    num_labels, labels, stats, centers = cv2.connectedComponentsWithStats(gray_image, connectivity=8, ltype=cv2.CV_32S)
+
+                
+
+    for t in range(1, num_labels, 1):
+        x, y, w, h, area = stats[t]
+        if area > 400:
+            if w / h < 3:
+                samples_y = np.linspace(y, y+h-1, 10)
+                # print(len(labels[100]))
+                # print(np.where(labels[int(samples_y[0])]==t)[0][0])
+                samples_x = [np.where(labels[int(sample_y)]==t)[0] for sample_y in samples_y]
+                samples_x = [sample_x[0] for sample_x in samples_x]
+                # for sample_x in samples_x:
+                #     print(sample_x[0])
+                # print(samples_x)
+                # print(np.where(labels[int(samples_y[0])]==t))
+                # samples_x = np.array(samples_x, dtype='float')
+                func = np.polyfit(samples_y, samples_x, 2)
+                draw_y = np.linspace(y, y+h-1, h)
+                draw_x = np.polyval(func, draw_y)
+                
+                draw_points = (np.asarray([draw_x, draw_y]).T).astype(np.int32)
+                # print(draw_points)
+
+                cv2.polylines(mask, [draw_points], False, 1, thickness=15)
+                # mask[draw_points] = 1
+            else:
+                mask[labels == t] = 1
+    return mask
+
+
+

@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 from lib.utils import initialize_weights
 # from lib.models.common2 import DepthSeperabelConv2d as Conv
 # from lib.models.common2 import SPP, Bottleneck, BottleneckCSP, Focus, Concat, Detect
-from lib.models.common import Conv, SPP, Bottleneck, BottleneckCSP, Focus, Concat, Detect
+from lib.models.commonl import Conv, SPP, Bottleneck, BottleneckCSP, Focus, Concat, Detect
 from torch.nn import Upsample
 from lib.utils import check_anchor_order
 from lib.core.evaluate import SegmentationMetric
@@ -104,6 +104,50 @@ MCnet_SPP = [
 [ -1, SPP, [8, 2, [5, 9, 13]]] #segmentation output
 ]
 # [2,6,3,9,5,13], [7,19,11,26,17,39], [28,64,44,103,61,183]
+MCnet_fast = [
+[ -1, Focus, [3, 32, 3]],#0
+[ -1, Conv, [32, 64, 3, 2]],#1
+[ -1, BottleneckCSP, [64, 128, 1, True, True]],#2
+[ -1, BottleneckCSP, [128, 256, 1, True, True]],#4
+[ -1, BottleneckCSP, [256, 512, 1, True, True]],#6
+[ -1, SPP, [512, 512, [5, 9, 13]]],#8
+[ -1, BottleneckCSP, [512, 512, 1, False]],#9
+[ -1, Conv,[512, 256, 1, 1]],#10
+[ -1, Upsample, [None, 2, 'nearest']],#11
+[ [-1, 6], Concat, [1]],#12
+[ -1, BottleneckCSP, [512, 256, 1, False]],#13
+[ -1, Conv, [256, 128, 1, 1]],#14
+[ -1, Upsample, [None, 2, 'nearest']],#15
+[ [-1,4], Concat, [1]],#16
+[ -1, BottleneckCSP, [256, 128, 1, False, True]],#17
+[ [-1, 14], Concat, [1]],#19
+[ -1, BottleneckCSP, [256, 256, 1, False, True]],#20
+[ [-1, 10], Concat, [1]],#22
+[ -1, BottleneckCSP, [512, 512, 1, False]],#23
+[ [17, 20, 23], Detect,  [1, [[3,9,5,11,4,20], [7,18,6,39,12,31], [19,50,38,81,68,157]], [128, 256, 512]]], #Detect output 24
+
+[ 16, Conv, [256, 64, 3, 1]],#25
+[ -1, Upsample, [None, 2, 'nearest']],#26
+[ [-1,2], Concat, [1]],#27
+[ -1, BottleneckCSP, [128, 32, 1, False]],#28
+# [ -1, Conv, [64, 32, 1, 1]],#29
+[ -1, Upsample, [None, 2, 'nearest']],#30
+# [ -1, Conv, [32, 16, 1, 1]],#31
+[ -1, BottleneckCSP, [32, 8, 1, False]],#32
+[ -1, Upsample, [None, 2, 'nearest']],#33
+[ -1, Conv, [8, 2, 1, 1]], #Driving area segmentation output#34
+
+[ 16, Conv, [256, 64, 3, 1]],
+[ -1, Upsample, [None, 2, 'nearest']],
+[ [-1,2], Concat, [1]],
+[ -1, BottleneckCSP, [128, 32, 1, False]],
+# [ -1, Conv, [64, 32, 1, 1]],
+[ -1, Upsample, [None, 2, 'nearest']],
+# [ -1, Conv, [32, 16, 1, 1]],
+[ 31, BottleneckCSP, [32, 8, 1, False]],#35
+[ -1, Upsample, [None, 2, 'nearest']],#36
+[ -1, Conv, [8, 2, 1, 1]], #Lane line segmentation output #37
+]
 
 MCnet_light = [
 [ -1, Focus, [3, 32, 3]],#0
@@ -418,7 +462,7 @@ class CSPDarknet(nn.Module):
 
 def get_net(cfg, **kwargs): 
     # m_block_cfg = MCnet_share if cfg.MODEL.STRU_WITHSHARE else MCnet_no_share
-    m_block_cfg = MCnet_light
+    m_block_cfg = MCnet_fast
     model = MCnet(m_block_cfg, **kwargs)
     return model
 
