@@ -45,11 +45,11 @@ transform=transforms.Compose([
             ]
         )"""
 
-def tf(img,h,w):
-    img = transforms.ToPILImage()(img)
-    img = transforms.Resize((h, w))(img)
-    img = transforms.ToTensor()(img)
-    return img
+# def tf(img,h,w):
+#     img = transforms.ToPILImage()(img)
+#     img = transforms.Resize((h, w))(img)
+#     img = transforms.ToTensor()(img)
+#     return img
 
 def detect(cfg,opt):
 
@@ -77,7 +77,7 @@ def detect(cfg,opt):
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
-    print(colors)
+    # print(colors)
 
     # Run inference
     t0 = time.time()

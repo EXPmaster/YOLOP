@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 import random
-import torch
 
 
 def plot_img_and_mask(img, mask, index,epoch,save_dir):
