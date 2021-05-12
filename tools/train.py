@@ -133,15 +133,8 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-    stage1_freeze_idx = [str(i) for i in range(25, 37)]
     stage2_freeze_idx = [str(i) for i in range(0, 25)]
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-    #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
-    #     last_epoch=last_epoch
-    # )
-    lf = lambda x: ((1 + math.cos(x * math.pi / cfg.TRAIN.END_EPOCH)) / 2) * \
-                   (1 - cfg.TRAIN.LRF) + cfg.TRAIN.LRF  # cosine
-    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
 
     if rank in [-1, 0]:
